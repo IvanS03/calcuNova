@@ -1,56 +1,149 @@
-# Welcome to your Expo app 👋
+# 📱 Calculator App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern calculator built with React Native + Expo, featuring a clean UI, dark/light mode, and a powerful unit converter.
 
-## Get started
+---
 
-1. Install dependencies
+## ✨ Features
 
-   ```bash
-   npm install
-   ```
+* 🧮 Basic calculator functionality
+* 🌙 Dark mode & ☀️ Light mode
+* 🔄 Unit converter with multiple categories:
 
-2. Start the app
+  * Length
+  * Weight
+  * Volume
+  * Temperature
+  * Area
+  * Speed
+* ⚡ Fast and lightweight
+* 📱 Built with Expo Router
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+## 📦 Tech Stack
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+* React Native
+* Expo
+* TypeScript
+* Expo Router
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🔄 Unit Conversion System
 
-When you're ready, run:
+The app uses a **base unit conversion system (SI units)** for accuracy and consistency.
 
-```bash
-npm run reset-project
+Each unit defines:
+
+* `toBase`: converts to a base unit
+* `fromBase`: converts from the base unit
+
+### Example
+
+```ts
+const base = from.toBase(value);
+return to.fromBase(base);
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-### Other setup steps
+## 📂 Project Structure
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```
+/app
+/components
+/utils
+/constants
+```
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## 🚀 Getting Started
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 1. Install dependencies
 
-## Join the community
+```bash
+npm install
+```
 
-Join our community of developers creating universal apps.
+### 2. Run the app
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+```bash
+npx expo start
+```
+
+### Run on Android
+
+```bash
+npx expo run:android
+```
+
+### Run on iOS
+
+```bash
+npx expo run:ios
+```
+
+---
+
+## ⚙️ Configuration
+
+If using ads (AdMob):
+
+Make sure to configure:
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "YOUR_ADMOB_APP_ID"
+        }
+      ]
+    ]
+  }
+}
+```
+
+---
+
+## 🧠 Core Conversion Logic
+
+```ts
+export function convert(
+  value: number,
+  fromKey: string,
+  toKey: string,
+  category: UnitCategory
+): number {
+  const cat  = CATEGORIES.find(c => c.key === category)!;
+  const from = cat.units.find(u => u.key === fromKey)!;
+  const to   = cat.units.find(u => u.key === toKey)!;
+  const base = from.toBase(value);
+  return to.fromBase(base);
+}
+```
+
+---
+
+## 🎯 Future Improvements
+
+* 📊 History of calculations
+* ⭐ Favorite conversions
+* 🌍 Localization / multi-language
+* 💾 Persistent settings
+
+---
+
+## 📄 License
+
+MIT License
+
+---
+
+## 👤 Author
+
+Built by you 🚀
