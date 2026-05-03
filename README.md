@@ -1,4 +1,4 @@
-# 📱 Calculator App
+# 📱 CalcuNova App
 
 A modern calculator built with React Native + Expo, featuring a clean UI, dark/light mode, and a powerful unit converter.
 
@@ -146,4 +146,4 @@ MIT License
 
 ## 👤 Author
 
-Built by you 🚀
+Adground Dev
