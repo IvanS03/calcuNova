@@ -3,22 +3,25 @@ import { StyleSheet, View } from 'react-native';
 import { ButtonValue } from '../hooks/useCalculator';
 import CalcButton from './Button';
 
-// Standard iOS calculator layout
-// Last row: 0 (wide) + . + = = 4 columns exactly
 const ROWS: ButtonValue[][] = [
-  ['AC', '()', '%',  '÷'],
-  ['7',  '8',   '9', '×'],
-  ['4',  '5',   '6', '-'],
-  ['1',  '2',   '3', '+'],
-  ['0',  '.', '+/-', '='],  // '0' is wide, only 3 buttons here
+  ['AC', '+/-', '()', '÷'],
+  ['7', '8', '9', '×'],
+  ['4', '5', '6', '-'],
+  ['1', '2', '3', '+'],
+  ['0', '.', '='],
 ];
 
 interface ButtonGridProps {
   onPress: (value: ButtonValue) => void;
   isTablet: boolean;
+  isLandscape?: boolean;
 }
 
-export default function ButtonGrid({ onPress, isTablet }: ButtonGridProps) {
+export default function ButtonGrid({
+  onPress,
+  isTablet,
+  isLandscape = false,
+}: ButtonGridProps) {
   return (
     <View style={styles.grid}>
       {ROWS.map((row, rowIndex) => (
@@ -29,6 +32,8 @@ export default function ButtonGrid({ onPress, isTablet }: ButtonGridProps) {
               value={value}
               onPress={onPress}
               isTablet={isTablet}
+              isLandscape={isLandscape}
+              isWide={value === '0'}
             />
           ))}
         </View>
@@ -39,11 +44,11 @@ export default function ButtonGrid({ onPress, isTablet }: ButtonGridProps) {
 
 const styles = StyleSheet.create({
   grid: {
-    paddingHorizontal: 4,
+    // No alignSelf or alignItems here — parent handles centering
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: 2,
+    marginVertical: 1,
   },
 });

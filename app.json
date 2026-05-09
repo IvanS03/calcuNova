@@ -3,7 +3,7 @@
     "name": "calculator",
     "slug": "calculator",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "calculator",
     "userInterfaceStyle": "automatic",
@@ -40,9 +40,11 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-2943851881824222~5886519593",
-          "iosAppId":     "ca-app-pub-2943851881824222/1344639355"
+          "iosAppId": "ca-app-pub-2943851881824222/1344639355"
         }
-      ]
+      ],
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

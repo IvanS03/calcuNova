@@ -1,5 +1,13 @@
-import React, { useCallback } from 'react';
-import { Text, TextStyle, TouchableOpacity, ViewStyle } from 'react-native';
+import React, { useCallback, useRef } from 'react';
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextStyle,
+  ViewStyle,
+} from 'react-native';
+import { BUTTON_SIZE } from '../constants/layout';
 import { ButtonValue } from '../hooks/useCalculator';
 import { useTheme } from '../theme/ThemeContext';
 
@@ -7,64 +15,108 @@ interface ButtonProps {
   value: ButtonValue;
   onPress: (v: ButtonValue) => void;
   isTablet: boolean;
+  isLandscape?: boolean;
   isWide?: boolean;
 }
 
 function getButtonType(value: ButtonValue): 'function' | 'operator' | 'number' {
-  if (['AC', '%', '⌫', '()'].includes(value)) return 'function';
+  if (['AC', '+/-', '()', '⌫'].includes(value)) return 'function';
   if (['+', '-', '×', '÷', '='].includes(value)) return 'operator';
   return 'number';
 }
 
-export default function CalcButton({ value, onPress, isTablet, isWide = false }: ButtonProps) {
+export default function CalcButton({
+  value,
+  onPress,
+  isTablet,
+  isLandscape = false,
+  isWide = false,
+}: ButtonProps) {
   const { theme } = useTheme();
   const type = getButtonType(value);
-  const size = isTablet ? 88 : 72;
-  const gap  = isTablet ? 14 : 10;
+
+  const bp = isLandscape
+    ? BUTTON_SIZE.landscape
+    : isTablet
+      ? BUTTON_SIZE.tablet
+      : BUTTON_SIZE.phone;
+
+  const size = bp.size;
+  const gap = bp.gap;
+
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = useCallback(() => {
+    Animated.spring(scale, {
+      toValue: 0.91,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  }, []);
+
+  const handlePressOut = useCallback(() => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 50,
+      bounciness: 4,
+    }).start();
+  }, []);
 
   const bgColor = type === 'operator'
     ? theme.btnOperator
     : type === 'function'
-    ? theme.btnFunction
-    : theme.btnNumber;
+      ? theme.btnFunction
+      : theme.btnNumber;
 
   const textColor = type === 'operator'
     ? theme.btnTextOperator
     : type === 'function'
-    ? theme.btnTextFunction
-    : theme.btnTextNumber;
+      ? theme.btnTextFunction
+      : theme.btnTextNumber;
+
+  const btnWidth = isWide ? size * 2 + gap * 2 : size;
 
   const buttonStyle: ViewStyle = {
     backgroundColor: bgColor,
-    width: isWide ? size * 2 + gap : size,
+    width: btnWidth,
     height: size,
     borderRadius: size / 2,
     justifyContent: 'center',
     alignItems: isWide ? 'flex-start' : 'center',
     paddingLeft: isWide ? size / 2 : 0,
-    margin: isTablet ? 7 : 5,
-    borderWidth: type === 'number' ? 1 : 0,
+    margin: gap,
+    borderWidth: type === 'number' ? StyleSheet.hairlineWidth : 0,
     borderColor: theme.btnNumberBorder,
     shadowColor: type === 'operator' ? '#7119c3' : 'transparent',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: type === 'operator' ? 0.45 : 0,
-    shadowRadius: 8,
-    elevation: type === 'operator' ? 6 : 0,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: type === 'operator' ? 0.35 : 0,
+    shadowRadius: 6,
+    elevation: type === 'operator' ? 4 : 0,
   };
 
   const textStyle: TextStyle = {
     color: textColor,
-    fontSize: isTablet ? 30 : 24,
+    fontSize: bp.fontSize,
     fontWeight: '400',
+    // Prevent text from affecting layout
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   };
 
   return (
-    <TouchableOpacity
-      style={buttonStyle}
-      onPress={useCallback(() => onPress(value), [value, onPress])}
-      activeOpacity={0.7}
+    <Pressable
+      onPress={() => onPress(value)}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
     >
-      <Text style={textStyle}>{value}</Text>
-    </TouchableOpacity>
+      {/* Animated.View is the direct child of Pressable — no intermediate wrapper */}
+      <Animated.View style={[buttonStyle, { transform: [{ scale }] }]}>
+        <Text style={textStyle} numberOfLines={1}>
+          {value}
+        </Text>
+      </Animated.View>
+    </Pressable>
   );
 }

@@ -1,34 +1,50 @@
 import { ArrowUpDown } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
 } from 'react-native';
+import { SPACE } from '../constants/layout';
 import { useTheme } from '../theme/ThemeContext';
 import {
-    CATEGORIES,
-    Unit,
-    UnitCategory,
-    convert,
-    formatResult,
+  CATEGORIES,
+  Unit,
+  UnitCategory,
+  convert,
+  formatResult,
 } from '../utils/conversions';
 
-export default function UnitConverter({ isTablet }: { isTablet: boolean }) {
+// Category icons
+const CATEGORY_ICONS: Record<UnitCategory, string> = {
+  length: '📏',
+  weight: '⚖️',
+  volume: '🧪',
+  temperature: '🌡️',
+  area: '⬜',
+  speed: '💨',
+};
+
+interface UnitConverterProps {
+  isTablet: boolean;
+}
+
+export default function UnitConverter({ isTablet }: UnitConverterProps) {
   const { theme } = useTheme();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
 
   const [categoryKey, setCategoryKey] = useState<UnitCategory>('length');
   const category = CATEGORIES.find(c => c.key === categoryKey)!;
 
   const [fromUnit, setFromUnit] = useState<Unit>(category.units[0]);
-  const [toUnit,   setToUnit]   = useState<Unit>(category.units[1]);
-
+  const [toUnit, setToUnit] = useState<Unit>(category.units[1]);
   const [fromValue, setFromValue] = useState('');
-  const [toValue,   setToValue]   = useState('');
-
+  const [toValue, setToValue] = useState('');
   const [pickerOpen, setPickerOpen] = useState<'from' | 'to' | null>(null);
 
   // ── Category change ──────────────────────────────
@@ -81,318 +97,438 @@ export default function UnitConverter({ isTablet }: { isTablet: boolean }) {
     setPickerOpen(null);
   }, [fromValue, fromUnit, toUnit, categoryKey]);
 
-  const inputSize = isTablet ? 44 : 36;
-
-  return (
-    <View style={styles.wrapper}>
-
-      {/* ══════════════════════════════════════════
-          CONVERSION AREA (top, takes all space)
-      ══════════════════════════════════════════ */}
-      <View style={styles.conversionArea}>
-
-        {/* FROM block */}
-        <View style={[styles.block, { backgroundColor: theme.btnFunction }]}>
-          {/* Unit selector button */}
-          <TouchableOpacity
-            onPress={() => setPickerOpen(p => p === 'from' ? null : 'from')}
-            style={styles.unitHeader}
-          >
-            <View style={styles.unitHeaderLeft}>
-              <Text style={[styles.unitSymbolLarge, { color: theme.btnOperator }]}>
-                {fromUnit.symbol}
-              </Text>
-              <Text style={[styles.unitLabelSmall, { color: theme.resultText }]}>
-                {fromUnit.label}
-              </Text>
-            </View>
-            <Text style={[styles.chevron, { color: theme.resultText }]}>
-              {pickerOpen === 'from' ? '▲' : '▼'}
-            </Text>
-          </TouchableOpacity>
-
-          {/* Inline picker */}
-          {pickerOpen === 'from' && (
-            <UnitPicker
-              units={category.units}
-              selected={fromUnit}
-              onSelect={u => handleUnitSelect(u, 'from')}
-              theme={theme}
-            />
-          )}
-
-          {/* Input */}
-          <TextInput
-            style={[styles.bigInput, {
-              color:     theme.expressionText,
-              fontSize:  inputSize,
-              borderTopColor: theme.divider,
-            }]}
-            value={fromValue}
-            onChangeText={handleFromChange}
-            keyboardType="decimal-pad"
-            placeholder="0"
-            placeholderTextColor={theme.divider}
-            textAlign="right"
-          />
-        </View>
-
-        {/* SWAP button between blocks */}
-        <View style={styles.swapWrapper}>
-          <View style={[styles.swapLine, { backgroundColor: theme.divider }]} />
-          <TouchableOpacity
-            onPress={handleSwap}
-            style={[styles.swapBtn, { backgroundColor: theme.btnOperator }]}
-          >
-            {/* Wrap icon in View to apply transform — Lucide doesn't support style.transform */}
-            <View>
-              <ArrowUpDown size={20} color="#fff" />
-            </View>
-          </TouchableOpacity>
-          <View style={[styles.swapLine, { backgroundColor: theme.divider }]} />
-        </View>
-
-        {/* TO block */}
-        <View style={[styles.block, { backgroundColor: theme.btnFunction }]}>
-          <TouchableOpacity
-            onPress={() => setPickerOpen(p => p === 'to' ? null : 'to')}
-            style={styles.unitHeader}
-          >
-            <View style={styles.unitHeaderLeft}>
-              <Text style={[styles.unitSymbolLarge, { color: theme.btnOperator }]}>
-                {toUnit.symbol}
-              </Text>
-              <Text style={[styles.unitLabelSmall, { color: theme.resultText }]}>
-                {toUnit.label}
-              </Text>
-            </View>
-            <Text style={[styles.chevron, { color: theme.resultText }]}>
-              {pickerOpen === 'to' ? '▲' : '▼'}
-            </Text>
-          </TouchableOpacity>
-
-          {pickerOpen === 'to' && (
-            <UnitPicker
-              units={category.units}
-              selected={toUnit}
-              onSelect={u => handleUnitSelect(u, 'to')}
-              theme={theme}
-            />
-          )}
-
-          <TextInput
-            style={[styles.bigInput, {
-              color:    theme.expressionText,
-              fontSize: inputSize,
-              borderTopColor: theme.divider,
-            }]}
-            value={toValue}
-            onChangeText={handleToChange}
-            keyboardType="decimal-pad"
-            placeholder="0"
-            placeholderTextColor={theme.divider}
-            textAlign="right"
-          />
-        </View>
-
-      </View>
-
-      {/* ══════════════════════════════════════════
-          CATEGORY SELECTOR (bottom, compact)
-      ══════════════════════════════════════════ */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryRow}
-      >
-        {CATEGORIES.map(cat => (
+  // ── Category grid ────────────────────────────────
+  const CategoryGrid = (
+    <View style={styles.categoryGrid}>
+      {CATEGORIES.map(cat => {
+        const active = categoryKey === cat.key;
+        return (
           <TouchableOpacity
             key={cat.key}
             onPress={() => handleCategoryChange(cat.key)}
+            activeOpacity={0.75}
             style={[
-              styles.categoryChip,
+              styles.categoryBtn,
               {
-                backgroundColor: categoryKey === cat.key
+                backgroundColor: active
                   ? theme.btnOperator
                   : theme.btnFunction,
+                borderColor: active
+                  ? theme.btnOperator
+                  : theme.divider,
               },
             ]}
           >
+            <Text style={styles.categoryIcon}>
+              {CATEGORY_ICONS[cat.key]}
+            </Text>
             <Text style={[
-              styles.categoryChipText,
-              { color: categoryKey === cat.key ? '#fff' : theme.expressionText },
+              styles.categoryLabel,
+              { color: active ? '#fff' : theme.expressionText },
             ]}>
               {cat.label}
             </Text>
+            {active && (
+              <View style={[
+                styles.activeDot,
+                { backgroundColor: '#ffffff88' },
+              ]} />
+            )}
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+        );
+      })}
+    </View>
+  );
+
+  // ── Conversion display ───────────────────────────
+  const ConversionDisplay = (
+    <View style={styles.conversionArea}>
+
+      {/* FROM block */}
+      <View style={[styles.block, { backgroundColor: theme.btnFunction }]}>
+        <TouchableOpacity
+          onPress={() => setPickerOpen(p => p === 'from' ? null : 'from')}
+          style={styles.unitHeader}
+          activeOpacity={0.75}
+        >
+          <View style={styles.unitHeaderLeft}>
+            <Text style={[styles.unitSymbol, { color: theme.btnOperator }]}>
+              {fromUnit.symbol}
+            </Text>
+            <Text style={[styles.unitName, { color: theme.resultText }]}>
+              {fromUnit.label}
+            </Text>
+          </View>
+          <Text style={[styles.chevron, { color: theme.resultText }]}>
+            {pickerOpen === 'from' ? '▲' : '▼'}
+          </Text>
+        </TouchableOpacity>
+
+        {pickerOpen === 'from' && (
+          <UnitPicker
+            units={category.units}
+            selected={fromUnit}
+            onSelect={u => handleUnitSelect(u, 'from')}
+            theme={theme}
+          />
+        )}
+
+        <TextInput
+          style={[
+            styles.bigInput,
+            {
+              color: theme.expressionText,
+              borderTopColor: theme.divider,
+              fontSize: isTablet ? 40 : 34,
+            },
+          ]}
+          value={fromValue}
+          onChangeText={handleFromChange}
+          keyboardType="decimal-pad"
+          placeholder="0"
+          placeholderTextColor={theme.divider}
+          textAlign="right"
+        />
+      </View>
+
+      {/* Swap button */}
+      <View style={styles.swapRow}>
+        <View style={[styles.swapLine, { backgroundColor: theme.divider }]} />
+        <TouchableOpacity
+          onPress={handleSwap}
+          activeOpacity={0.8}
+          style={[styles.swapBtn, { backgroundColor: theme.btnOperator }]}
+        >
+          <ArrowUpDown size={18} color="#fff" />
+        </TouchableOpacity>
+        <View style={[styles.swapLine, { backgroundColor: theme.divider }]} />
+      </View>
+
+      {/* TO block */}
+      <View style={[styles.block, { backgroundColor: theme.btnFunction }]}>
+        <TouchableOpacity
+          onPress={() => setPickerOpen(p => p === 'to' ? null : 'to')}
+          style={styles.unitHeader}
+          activeOpacity={0.75}
+        >
+          <View style={styles.unitHeaderLeft}>
+            <Text style={[styles.unitSymbol, { color: theme.btnOperator }]}>
+              {toUnit.symbol}
+            </Text>
+            <Text style={[styles.unitName, { color: theme.resultText }]}>
+              {toUnit.label}
+            </Text>
+          </View>
+          <Text style={[styles.chevron, { color: theme.resultText }]}>
+            {pickerOpen === 'to' ? '▲' : '▼'}
+          </Text>
+        </TouchableOpacity>
+
+        {pickerOpen === 'to' && (
+          <UnitPicker
+            units={category.units}
+            selected={toUnit}
+            onSelect={u => handleUnitSelect(u, 'to')}
+            theme={theme}
+          />
+        )}
+
+        <TextInput
+          style={[
+            styles.bigInput,
+            {
+              color: theme.expressionText,
+              borderTopColor: theme.divider,
+              fontSize: isTablet ? 40 : 34,
+            },
+          ]}
+          value={toValue}
+          onChangeText={handleToChange}
+          keyboardType="decimal-pad"
+          placeholder="0"
+          placeholderTextColor={theme.divider}
+          textAlign="right"
+        />
+      </View>
 
     </View>
+  );
+
+  // ════════════════════════════════════════════════
+  // LANDSCAPE — 2 columns
+  // ════════════════════════════════════════════════
+  if (isLandscape) {
+    return (
+      <View style={styles.landscapeRoot}>
+
+        {/* LEFT: category grid */}
+        <View style={styles.landscapeLeft}>
+          <Text style={[styles.sectionTitle, { color: theme.resultText }]}>
+            Categoría
+          </Text>
+          {CategoryGrid}
+        </View>
+
+        {/* Divider */}
+        <View style={[styles.landscapeDivider, { backgroundColor: theme.divider }]} />
+
+        {/* RIGHT: conversion display */}
+        <View style={styles.landscapeRight}>
+          <Text style={[styles.sectionTitle, { color: theme.resultText }]}>
+            {CATEGORY_ICONS[categoryKey]}{'  '}{category.label}
+          </Text>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {ConversionDisplay}
+          </ScrollView>
+        </View>
+
+      </View>
+    );
+  }
+
+  // ════════════════════════════════════════════════
+  // PORTRAIT — stacked
+  // ════════════════════════════════════════════════
+  return (
+    <ScrollView
+      style={styles.portraitRoot}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Category section */}
+      <Text style={[styles.sectionTitle, { color: theme.resultText }]}>
+        Categoría
+      </Text>
+      {CategoryGrid}
+
+      {/* Divider */}
+      <View style={[styles.portraitDivider, { backgroundColor: theme.divider }]} />
+
+      {/* Conversion section */}
+      <Text style={[styles.sectionTitle, { color: theme.resultText }]}>
+        {CATEGORY_ICONS[categoryKey]}{'  '}{category.label}
+      </Text>
+      {ConversionDisplay}
+
+      {/* Bottom padding so last input clears keyboard */}
+      <View style={{ height: SPACE.xl }} />
+    </ScrollView>
   );
 }
 
 // ── Inline unit picker ───────────────────────────────
-function UnitPicker({ units, selected, onSelect, theme }: {
-  units:    Unit[];
+function UnitPicker({
+  units, selected, onSelect, theme,
+}: {
+  units: Unit[];
   selected: Unit;
   onSelect: (u: Unit) => void;
-  theme:    any;
+  theme: any;
 }) {
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.pickerRow}
+      keyboardShouldPersistTaps="handled"
     >
-      {units.map(u => (
-        <TouchableOpacity
-          key={u.key}
-          onPress={() => onSelect(u)}
-          style={[
-            styles.pickerChip,
-            {
-              backgroundColor: selected.key === u.key
-                ? theme.btnOperator
-                : theme.background,
-              borderColor: theme.divider,
-            },
-          ]}
-        >
-          <Text style={[
-            styles.pickerSymbol,
-            { color: selected.key === u.key ? '#fff' : theme.expressionText },
-          ]}>
-            {u.symbol}
-          </Text>
-          <Text style={[
-            styles.pickerLabel,
-            { color: selected.key === u.key ? '#ffffffcc' : theme.resultText },
-          ]}>
-            {u.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
+      {units.map(u => {
+        const active = selected.key === u.key;
+        return (
+          <TouchableOpacity
+            key={u.key}
+            onPress={() => onSelect(u)}
+            activeOpacity={0.75}
+            style={[
+              styles.pickerChip,
+              {
+                backgroundColor: active ? theme.btnOperator : theme.background,
+                borderColor: active ? theme.btnOperator : theme.divider,
+              },
+            ]}
+          >
+            <Text style={[
+              styles.pickerSymbol,
+              { color: active ? '#fff' : theme.expressionText },
+            ]}>
+              {u.symbol}
+            </Text>
+            <Text style={[
+              styles.pickerLabel,
+              { color: active ? '#ffffffcc' : theme.resultText },
+            ]}>
+              {u.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    flex:            1,
-    paddingHorizontal: 12,
-    paddingTop:        8,
-    paddingBottom:     8,
-    justifyContent:  'space-between',
+
+  // ── Portrait ─────────────────────────────────────
+  portraitRoot: {
+    flex: 1,
+  },
+  portraitDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: SPACE.md,
+    marginHorizontal: SPACE.xs,
+  },
+
+  // ── Landscape ────────────────────────────────────
+  landscapeRoot: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  landscapeLeft: {
+    width: '38%',
+    paddingRight: SPACE.sm,
+  },
+  landscapeDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    marginHorizontal: SPACE.sm,
+  },
+  landscapeRight: {
+    flex: 1,
+    paddingLeft: SPACE.sm,
+  },
+
+  // ── Section title ────────────────────────────────
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: SPACE.sm,
+    marginLeft: SPACE.xs,
+  },
+
+  // ── Category grid — 2 columns ────────────────────
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACE.sm,
+  },
+  categoryBtn: {
+    // 2 columns with gap
+    width: '47%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 10,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  categoryIcon: {
+    fontSize: 20,
+  },
+  categoryLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  activeDot: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 
   // ── Conversion area ──────────────────────────────
   conversionArea: {
-    flex: 1,
-    justifyContent: 'center',
-    gap: 0,
+    gap: SPACE.sm,
   },
-
   block: {
     borderRadius: 18,
-    overflow:     'hidden',
-    paddingBottom: 4,
+    overflow: 'hidden',
   },
-
   unitHeader: {
-    flexDirection:  'row',
-    alignItems:     'center',
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical:   12,
+    paddingHorizontal: SPACE.md,
+    paddingVertical: 12,
   },
   unitHeaderLeft: {
     flexDirection: 'row',
-    alignItems:    'baseline',
-    gap:           8,
+    alignItems: 'baseline',
+    gap: SPACE.sm,
   },
-  unitSymbolLarge: {
-    fontSize:   22,
+  unitSymbol: {
+    fontSize: 20,
     fontWeight: '700',
   },
-  unitLabelSmall: {
-    fontSize:   13,
+  unitName: {
+    fontSize: 13,
     fontWeight: '400',
   },
   chevron: {
     fontSize: 11,
   },
-
   bigInput: {
-    fontWeight:       '300',
-    paddingHorizontal: 16,
-    paddingTop:        10,
-    paddingBottom:     14,
-    borderTopWidth:    StyleSheet.hairlineWidth,
-  },
-
-  // ── Picker ───────────────────────────────────────
-  pickerRow: {
-    paddingHorizontal: 12,
-    paddingVertical:    8,
-    gap:                8,
-  },
-  pickerChip: {
-    paddingHorizontal: 12,
-    paddingVertical:    8,
-    borderRadius:      10,
-    borderWidth:        1,
-    alignItems:        'center',
-    minWidth:           58,
-  },
-  pickerSymbol: {
-    fontSize:   14,
-    fontWeight: '700',
-  },
-  pickerLabel: {
-    fontSize:  10,
-    marginTop:  2,
+    fontWeight: '300',
+    paddingHorizontal: SPACE.md,
+    paddingTop: SPACE.sm,
+    paddingBottom: SPACE.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 
   // ── Swap ─────────────────────────────────────────
-  swapWrapper: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    marginVertical: 10,
+  swapRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: SPACE.xs,
   },
   swapLine: {
-    flex:   1,
+    flex: 1,
     height: StyleSheet.hairlineWidth,
   },
   swapBtn: {
-    width:            40,
-    height:           40,
-    borderRadius:     20,
-    justifyContent:   'center',
-    alignItems:       'center',
-    marginHorizontal: 14,
-    // Shadow
-    shadowColor:    '#7119c3',
-    shadowOffset:   { width: 0, height: 0 },
-    shadowOpacity:  0.5,
-    shadowRadius:   8,
-    elevation:      6,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: SPACE.md,
+    shadowColor: '#7119c3',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 4,
   },
 
-  // ── Category selector (bottom) ───────────────────
-  categoryRow: {
-    paddingTop:    12,
-    paddingBottom:  4,
-    gap:            8,
-    flexDirection: 'row',
+  // ── Unit picker ──────────────────────────────────
+  pickerRow: {
+    paddingHorizontal: SPACE.sm,
+    paddingVertical: SPACE.sm,
+    gap: SPACE.sm,
   },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical:    7,
-    borderRadius:      20,
+  pickerChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    minWidth: 58,
   },
-  categoryChipText: {
-    fontSize:   13,
-    fontWeight: '600',
+  pickerSymbol: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  pickerLabel: {
+    fontSize: 10,
+    marginTop: 2,
   },
 });
