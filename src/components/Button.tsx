@@ -16,11 +16,12 @@ interface ButtonProps {
   onPress: (v: ButtonValue) => void;
   isTablet: boolean;
   isLandscape?: boolean;
+  isTabletLandscape?: boolean;  // ← nuevo
   isWide?: boolean;
 }
 
 function getButtonType(value: ButtonValue): 'function' | 'operator' | 'number' {
-  if (['AC', '+/-', '()', '⌫'].includes(value)) return 'function';
+  if (['AC', '+/-', '()', '%', '⌫'].includes(value)) return 'function';
   if (['+', '-', '×', '÷', '='].includes(value)) return 'operator';
   return 'number';
 }
@@ -30,16 +31,20 @@ export default function CalcButton({
   onPress,
   isTablet,
   isLandscape = false,
+  isTabletLandscape = false,
   isWide = false,
 }: ButtonProps) {
   const { theme } = useTheme();
   const type = getButtonType(value);
 
-  const bp = isLandscape
-    ? BUTTON_SIZE.landscape
-    : isTablet
-      ? BUTTON_SIZE.tablet
-      : BUTTON_SIZE.phone;
+  // Priority: tabletLandscape > landscape > tablet > phone
+  const bp = isTabletLandscape
+    ? BUTTON_SIZE.tabletLandscape
+    : isLandscape
+      ? BUTTON_SIZE.landscape
+      : isTablet
+        ? BUTTON_SIZE.tablet
+        : BUTTON_SIZE.phone;
 
   const size = bp.size;
   const gap = bp.gap;
@@ -48,19 +53,13 @@ export default function CalcButton({
 
   const handlePressIn = useCallback(() => {
     Animated.spring(scale, {
-      toValue: 0.91,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
+      toValue: 0.91, useNativeDriver: true, speed: 50, bounciness: 4,
     }).start();
   }, []);
 
   const handlePressOut = useCallback(() => {
     Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
+      toValue: 1, useNativeDriver: true, speed: 50, bounciness: 4,
     }).start();
   }, []);
 
@@ -76,16 +75,13 @@ export default function CalcButton({
       ? theme.btnTextFunction
       : theme.btnTextNumber;
 
-  const btnWidth = isWide ? size * 2 + gap * 2 : size;
-
   const buttonStyle: ViewStyle = {
     backgroundColor: bgColor,
-    width: btnWidth,
+    width: isWide ? size * 2 + gap * 2 : size,
     height: size,
     borderRadius: size / 2,
     justifyContent: 'center',
-    alignItems: isWide ? 'flex-start' : 'center',
-    paddingLeft: isWide ? size / 2 : 0,
+    alignItems: 'center',
     margin: gap,
     borderWidth: type === 'number' ? StyleSheet.hairlineWidth : 0,
     borderColor: theme.btnNumberBorder,
@@ -100,7 +96,6 @@ export default function CalcButton({
     color: textColor,
     fontSize: bp.fontSize,
     fontWeight: '400',
-    // Prevent text from affecting layout
     includeFontPadding: false,
     textAlignVertical: 'center',
   };
@@ -111,7 +106,6 @@ export default function CalcButton({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
     >
-      {/* Animated.View is the direct child of Pressable — no intermediate wrapper */}
       <Animated.View style={[buttonStyle, { transform: [{ scale }] }]}>
         <Text style={textStyle} numberOfLines={1}>
           {value}

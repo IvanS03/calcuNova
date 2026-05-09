@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { TYPOGRAPHY } from '../constants/layout';
@@ -15,6 +16,9 @@ interface DisplayProps {
   result: string;
   isTablet: boolean;
   isLandscape?: boolean;
+  isTabletLandscape?: boolean;
+  // Only shown when explicitly passed (landscape two-column layout)
+  onBackspace?: () => void;
 }
 
 export default function Display({
@@ -22,14 +26,18 @@ export default function Display({
   result,
   isTablet,
   isLandscape = false,
+  isTabletLandscape = false,
+  onBackspace,
 }: DisplayProps) {
   const { theme } = useTheme();
 
-  const typo = isLandscape
-    ? TYPOGRAPHY.landscape
-    : isTablet
-      ? TYPOGRAPHY.tablet
-      : TYPOGRAPHY.phone;
+  const typo = isTabletLandscape
+    ? TYPOGRAPHY.tabletLandscape
+    : isLandscape
+      ? TYPOGRAPHY.landscape
+      : isTablet
+        ? TYPOGRAPHY.tablet
+        : TYPOGRAPHY.phone;
 
   const exprFontSize = expression.length > typo.displayThreshold
     ? typo.expressionMedium
@@ -56,8 +64,23 @@ export default function Display({
   return (
     <View style={[
       styles.container,
-      isLandscape && styles.containerLandscape,
+      (isLandscape || isTabletLandscape) && styles.containerLandscape,
     ]}>
+
+      {/* ⌫ button — only in two-column landscape */}
+      {onBackspace && (
+        <TouchableOpacity
+          onPress={onBackspace}
+          activeOpacity={0.6}
+          style={styles.backspaceBtn}
+        >
+          <Text style={[styles.backspaceIcon, { color: theme.resultText }]}>
+            ⌫
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Expression */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -79,6 +102,7 @@ export default function Display({
         </Text>
       </ScrollView>
 
+      {/* Live result */}
       <Animated.Text
         style={[
           styles.result,
@@ -93,6 +117,7 @@ export default function Display({
       >
         = {result}
       </Animated.Text>
+
     </View>
   );
 }
@@ -120,5 +145,15 @@ const styles = StyleSheet.create({
   result: {
     fontWeight: '300',
     marginTop: 6,
+  },
+  // ⌫ in display
+  backspaceBtn: {
+    alignSelf: 'flex-end',
+    padding: 8,
+    marginBottom: 4,
+  },
+  backspaceIcon: {
+    fontSize: 28,
+    fontWeight: '300',
   },
 });

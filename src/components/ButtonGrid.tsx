@@ -4,23 +4,25 @@ import { ButtonValue } from '../hooks/useCalculator';
 import CalcButton from './Button';
 
 const ROWS: ButtonValue[][] = [
-  ['AC', '+/-', '()', '÷'],
+  ['AC', '%', '()', '÷'],
   ['7', '8', '9', '×'],
   ['4', '5', '6', '-'],
   ['1', '2', '3', '+'],
-  ['0', '.', '='],
+  ['+/-', '0', '.', '='],
 ];
 
 interface ButtonGridProps {
   onPress: (value: ButtonValue) => void;
   isTablet: boolean;
   isLandscape?: boolean;
+  isTabletLandscape?: boolean;
 }
 
 export default function ButtonGrid({
   onPress,
   isTablet,
   isLandscape = false,
+  isTabletLandscape = false,
 }: ButtonGridProps) {
   return (
     <View style={styles.grid}>
@@ -33,7 +35,8 @@ export default function ButtonGrid({
               onPress={onPress}
               isTablet={isTablet}
               isLandscape={isLandscape}
-              isWide={value === '0'}
+              isTabletLandscape={isTabletLandscape}
+              isWide={false}
             />
           ))}
         </View>
@@ -43,12 +46,6 @@ export default function ButtonGrid({
 }
 
 const styles = StyleSheet.create({
-  grid: {
-    // No alignSelf or alignItems here — parent handles centering
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginVertical: 1,
-  },
+  grid: {},
+  row: { flexDirection: 'row', justifyContent: 'center', marginVertical: 1 },
 });

@@ -28,41 +28,36 @@ export default function Index() {
 
   const isTablet = width >= 768;
   const isLandscape = width > height;
-  // 2-column layout: tablet landscape only
-  // const twoColumn = isTablet && isLandscape;
-  // 2 columns in landscape on all devices with min width (including phones)
-  // const twoColumn = isLandscape && width >= 600;
-  // 2 columns in landscape on all devices, no min width (even small phones)
-  const twoColumn = isLandscape;
+  const twoColumn = isLandscape && width >= 600;
+  const isTabletLandscape = twoColumn && isTablet;
 
   const hPad = isTablet ? CONTENT_PADDING.tablet : CONTENT_PADDING.phone;
 
   const { opacity, translateY } = useAnimatedMode(appMode);
-  const animStyle = {
-    opacity,
-    transform: [{ translateY }],
-  };
+  const animStyle = { opacity, transform: [{ translateY }] };
 
-  // ── Buttons — shared between layouts ────────────
+  // ── Buttons ─────────────────────────────────────
   const CalcButtons = (
     <View style={styles.buttonsCenter}>
       {appMode === 'scientific' && (
         <ScientificGrid
           onPress={handlePress}
           isTablet={isTablet}
-          isLandscape={twoColumn}
+          isLandscape={twoColumn && !isTablet}
+          isTabletLandscape={isTabletLandscape}
         />
       )}
       <ButtonGrid
         onPress={handlePress}
         isTablet={isTablet}
-        isLandscape={twoColumn}
+        isLandscape={twoColumn && !isTablet}
+        isTabletLandscape={isTabletLandscape}
       />
     </View>
   );
 
   // ════════════════════════════════════════════════
-  // TWO-COLUMN — converter gets full width
+  // TWO-COLUMN — converter full width
   // ════════════════════════════════════════════════
   if (twoColumn && appMode === 'converter') {
     return (
@@ -85,7 +80,6 @@ export default function Index() {
           />
           <ThemeButton />
         </View>
-
         <Animated.View style={[styles.flex, animStyle]}>
           <UnitConverter isTablet={isTablet} />
         </Animated.View>
@@ -109,7 +103,7 @@ export default function Index() {
         },
       ]}>
 
-        {/* ── LEFT: buttons centered ────────────── */}
+        {/* ── LEFT: buttons ─────────────────────── */}
         <View style={styles.leftCol}>
           {CalcButtons}
         </View>
@@ -139,7 +133,10 @@ export default function Index() {
                 expression={expression}
                 result={result}
                 isTablet={false}
-                isLandscape
+                isLandscape={!isTablet}
+                isTabletLandscape={isTabletLandscape}
+                // ⌫ only shown here in two-column landscape
+                onBackspace={() => handlePress('⌫')}
               />
             </View>
           </Animated.View>
@@ -151,7 +148,7 @@ export default function Index() {
   }
 
   // ════════════════════════════════════════════════
-  // SINGLE COLUMN — portrait (phone + tablet)
+  // SINGLE COLUMN — portrait
   // ════════════════════════════════════════════════
   return (
     <View style={[
@@ -165,7 +162,7 @@ export default function Index() {
       },
     ]}>
 
-      {/* ── Top bar ───────────────────────────────── */}
+      {/* Top bar */}
       <View style={styles.topBar}>
         <ModeBar
           current={appMode}
@@ -176,7 +173,7 @@ export default function Index() {
         <ThemeButton />
       </View>
 
-      {/* ── Converter ─────────────────────────────── */}
+      {/* Converter */}
       {appMode === 'converter' ? (
         <Animated.View style={[styles.flex, animStyle]}>
           <UnitConverter isTablet={isTablet} />
@@ -184,10 +181,9 @@ export default function Index() {
 
       ) : (
 
-        /* ── Calculator ───────────────────────────── */
+        /* Calculator */
         <Animated.View style={[styles.flex, animStyle]}>
 
-          {/* Display */}
           <View style={styles.displayWrapper}>
             <Display
               expression={expression}
@@ -196,13 +192,9 @@ export default function Index() {
             />
           </View>
 
-          {/* Divider */}
-          <View style={[
-            styles.divider,
-            { backgroundColor: theme.divider },
-          ]} />
+          <View style={[styles.divider, { backgroundColor: theme.divider }]} />
 
-          {/* Backspace — basic mode only */}
+          {/* Backspace row — portrait basic mode */}
           {appMode === 'basic' && (
             <View style={styles.backspaceRow}>
               <TouchableOpacity
@@ -210,17 +202,13 @@ export default function Index() {
                 style={styles.backspaceBtn}
                 activeOpacity={0.6}
               >
-                <Text style={[
-                  styles.backspaceIcon,
-                  { color: theme.headerIcon },
-                ]}>
+                <Text style={[styles.backspaceIcon, { color: theme.headerIcon }]}>
                   ⌫
                 </Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Buttons */}
           <View style={styles.buttonsWrapper}>
             {CalcButtons}
           </View>
@@ -266,13 +254,9 @@ const styles = StyleSheet.create({
   },
   backspaceBtn: { padding: SPACE.sm },
   backspaceIcon: { fontSize: 22 },
-  buttonsWrapper: {
-    paddingHorizontal: SPACE.xs,
-  },
+  buttonsWrapper: { paddingHorizontal: SPACE.xs },
   buttonsCenter: {
-    alignSelf: 'center',
     alignItems: 'stretch',
-    justifyContent: 'center',
   },
 
   // ── Two column ───────────────────────────────────
@@ -306,7 +290,7 @@ const styles = StyleSheet.create({
   },
   displayFull: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',   // ⌫ top, expression bottom
     paddingHorizontal: SPACE.sm,
   },
 });

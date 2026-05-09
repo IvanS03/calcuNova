@@ -2,27 +2,38 @@ import { useCallback, useState } from 'react';
 import { evaluateExpression } from '../utils/evaluate';
 
 export type ButtonValue =
-  // Basic digits
+  // Digits
   | '0' | '1' | '2' | '3' | '4'
   | '5' | '6' | '7' | '8' | '9'
   // Basic operators
   | '+' | '-' | '×' | '÷' | '.' | '='
   // Basic functions
   | 'AC' | '+/-' | '%' | '⌫'
-  // Scientific
+  // Parens
+  | '(' | ')' | '()'
+  // Scientific page A
   | 'sin(' | 'cos(' | 'tan('
   | 'log(' | 'ln(' | '√('
-  | 'x²' | '^'
-  | 'π' | 'e'
-  | '('   | ')' | '()'
+  | 'x²' | '^' | 'π' | 'e'
+  // Scientific page B
+  | 'asin(' | 'acos(' | 'atan('
+  | 'sinh(' | 'cosh(' | 'tanh('
+  | 'cbrt(' | 'abs(' | 'x³'
+  | '1/x' | '10^(' | 'e^(';
 
 const OPERATORS = ['+', '-', '×', '÷', '^'];
 
 // Values that append directly to expression as-is
 const APPEND_AS_IS: ButtonValue[] = [
+  // Page A
   'sin(', 'cos(', 'tan(',
   'log(', 'ln(', '√(',
   'π', 'e', '(', ')',
+  // Page B
+  'asin(', 'acos(', 'atan(',
+  'sinh(', 'cosh(', 'tanh(',
+  'cbrt(', 'abs(',
+  '10^(', 'e^(',
 ];
 
 export function useCalculator() {
@@ -64,8 +75,12 @@ export function useCalculator() {
     if (value === '⌫') {
       setJustEvaluated(false);
       setExpression(prev => {
-        // Remove multi-char tokens like sin( cos( etc.
-        const multiTokens = ['sin(', 'cos(', 'tan(', 'log(', 'ln(', '√('];
+        const multiTokens = [
+          // Page A
+          'sin(', 'cos(', 'tan(', 'log(', 'ln(', '√(',
+          // Page B
+          'asin(', 'acos(', 'atan(', 'sinh(', 'cosh(', 'tanh(', 'cbrt(', 'abs(', '10^(', 'e^(',
+        ];
         for (const token of multiTokens) {
           if (prev.endsWith(token)) {
             const next = prev.slice(0, -token.length) || '0';
@@ -104,8 +119,12 @@ export function useCalculator() {
     // ── Percentage ────────────────────────────────────────
     if (value === '%') {
       setJustEvaluated(false);
-      const pct = evaluateExpression(expression);
-      if (pct) updateExpression(String(parseFloat(pct) / 100));
+      if (expression === '0') return;
+      // Only append % if last char is a digit or closing paren
+      const lastChar = expression.slice(-1);
+      if (!/[0-9)]/.test(lastChar)) return;
+      const next = expression + '%';
+      updateExpression(next);
       return;
     }
 
@@ -157,6 +176,23 @@ export function useCalculator() {
     if (APPEND_AS_IS.includes(value)) {
       setJustEvaluated(false);
       const next = expression === '0' ? String(value) : expression + value;
+      updateExpression(next);
+      return;
+    }
+
+    // ── x³ ───────────────────────────────────────────
+    if (value === 'x³') {
+      setJustEvaluated(false);
+      const next = expression === '0' ? '0**3' : expression + '**3';
+      updateExpression(next);
+      return;
+    }
+
+    // ── 1/x ──────────────────────────────────────────
+    if (value === '1/x') {
+      setJustEvaluated(false);
+      if (expression === '0') return;
+      const next = `1/(${expression})`;
       updateExpression(next);
       return;
     }
