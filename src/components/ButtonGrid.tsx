@@ -16,6 +16,7 @@ interface ButtonGridProps {
   isTablet: boolean;
   isLandscape?: boolean;
   isTabletLandscape?: boolean;
+  dynamicSize?: number; // ← override size when passed
 }
 
 export default function ButtonGrid({
@@ -23,6 +24,7 @@ export default function ButtonGrid({
   isTablet,
   isLandscape = false,
   isTabletLandscape = false,
+  dynamicSize,
 }: ButtonGridProps) {
   return (
     <View style={styles.grid}>
@@ -37,6 +39,7 @@ export default function ButtonGrid({
               isLandscape={isLandscape}
               isTabletLandscape={isTabletLandscape}
               isWide={false}
+              dynamicSize={dynamicSize}
             />
           ))}
         </View>

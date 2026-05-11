@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { TYPOGRAPHY } from '../constants/layout';
+import { SPACE, TYPOGRAPHY } from '../constants/layout';
 import { useTheme } from '../theme/ThemeContext';
 
 interface DisplayProps {
@@ -17,7 +17,6 @@ interface DisplayProps {
   isTablet: boolean;
   isLandscape?: boolean;
   isTabletLandscape?: boolean;
-  // Only shown when explicitly passed (landscape two-column layout)
   onBackspace?: () => void;
 }
 
@@ -31,6 +30,8 @@ export default function Display({
 }: DisplayProps) {
   const { theme } = useTheme();
 
+  const isAnyLandscape = isLandscape || isTabletLandscape;
+
   const typo = isTabletLandscape
     ? TYPOGRAPHY.tabletLandscape
     : isLandscape
@@ -43,7 +44,9 @@ export default function Display({
     ? typo.expressionMedium
     : typo.expressionLarge;
 
+  // Animated values
   const resultOpacity = useRef(new Animated.Value(0)).current;
+  const resultScale = useRef(new Animated.Value(0.92)).current;
   const mounted = useRef(false);
 
   useEffect(() => {
@@ -53,34 +56,105 @@ export default function Display({
 
   useEffect(() => {
     if (!mounted.current) return;
-    Animated.timing(resultOpacity, {
-      toValue: result !== '' ? 1 : 0,
-      duration: 180,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
+    const showing = result !== '';
+    Animated.parallel([
+      Animated.timing(resultOpacity, {
+        toValue: showing ? 1 : 0,
+        duration: 200,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+      Animated.spring(resultScale, {
+        toValue: showing ? 1 : 0.92,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 4,
+      }),
+    ]).start();
   }, [result !== '']);
 
+  // ════════════════════════════════════════════════
+  // LANDSCAPE — todo al top, uno debajo del otro
+  // ════════════════════════════════════════════════
+  if (isAnyLandscape) {
+    return (
+      <View style={styles.landscapeContainer}>
+
+        {/* Result — grande arriba */}
+        <Animated.Text
+          style={[
+            styles.landscapeResult,
+            {
+              fontSize: typo.resultSize,
+              color: theme.btnOperator,
+              opacity: resultOpacity,
+            },
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.4}
+        >
+          {result !== '' ? result : ' '}
+        </Animated.Text>
+
+        {/* Separator */}
+        <View style={[
+          styles.landscapeSeparator,
+          { backgroundColor: theme.divider },
+        ]} />
+
+        {/* Expression — debajo del resultado */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.landscapeExprScroll}
+        >
+          <Text
+            style={[
+              styles.landscapeExpr,
+              {
+                fontSize: exprFontSize,
+                color: result !== ''
+                  ? theme.resultText
+                  : theme.expressionText,
+              },
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.4}
+          >
+            {expression}
+          </Text>
+        </ScrollView>
+
+        {/* ⌫ — justo debajo de la expresión */}
+        {onBackspace && (
+          <TouchableOpacity
+            onPress={onBackspace}
+            activeOpacity={0.6}
+            style={styles.landscapeBackspace}
+          >
+            <Text style={[
+              styles.landscapeBackspaceIcon,
+              { color: theme.resultText },
+            ]}>
+              ⌫
+            </Text>
+          </TouchableOpacity>
+        )}
+
+      </View>
+    );
+  }
+
+  // ════════════════════════════════════════════════
+  // PORTRAIT LAYOUT — unchanged
+  // ════════════════════════════════════════════════
   return (
     <View style={[
-      styles.container,
-      (isLandscape || isTabletLandscape) && styles.containerLandscape,
+      styles.portraitContainer,
+      isTablet && styles.portraitContainerTablet,
     ]}>
-
-      {/* ⌫ button — only in two-column landscape */}
-      {onBackspace && (
-        <TouchableOpacity
-          onPress={onBackspace}
-          activeOpacity={0.6}
-          style={styles.backspaceBtn}
-        >
-          <Text style={[styles.backspaceIcon, { color: theme.resultText }]}>
-            ⌫
-          </Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Expression */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -102,7 +176,6 @@ export default function Display({
         </Text>
       </ScrollView>
 
-      {/* Live result */}
       <Animated.Text
         style={[
           styles.result,
@@ -110,6 +183,7 @@ export default function Display({
             fontSize: typo.resultSize,
             color: theme.resultText,
             opacity: resultOpacity,
+            transform: [{ scale: resultScale }],
           },
         ]}
         numberOfLines={1}
@@ -117,22 +191,20 @@ export default function Display({
       >
         = {result}
       </Animated.Text>
-
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+
+  // ── Portrait ─────────────────────────────────────
+  portraitContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     alignItems: 'flex-end',
-    minHeight: 130,
+    // Fixed height — buttons will fill the rest
+    height: 160,   // matches UI_CHROME.displayPortrait
     justifyContent: 'flex-end',
-  },
-  containerLandscape: {
-    minHeight: 80,
-    paddingVertical: 10,
   },
   scroll: {
     flexGrow: 1,
@@ -146,14 +218,62 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     marginTop: 6,
   },
-  // ⌫ in display
-  backspaceBtn: {
-    alignSelf: 'flex-end',
-    padding: 8,
-    marginBottom: 4,
+  portraitContainerTablet: {
+    height: 200,           // matches UI_CHROME.displayTablet
   },
-  backspaceIcon: {
-    fontSize: 28,
+
+  // ── Landscape ────────────────────────────────────
+  landscapeContainer: {
+    // Top-aligned — no flex, no justifyContent
+    paddingHorizontal: SPACE.md,
+    paddingTop: SPACE.sm,
+    paddingBottom: SPACE.sm,
+  },
+
+  // Result — big, top
+  landscapeResultWrapper: {
+    alignItems: 'flex-end',
+    paddingTop: SPACE.xs,
+    minHeight: 60,
+    justifyContent: 'center',
+  },
+  landscapeResult: {
+    fontWeight: '200',
+    letterSpacing: -1,
+    textAlign: 'right',
+    marginBottom: SPACE.xs,
+    minHeight: 54,      // reserved space even when empty
+  },
+
+  // Separator
+  landscapeSeparator: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: SPACE.sm,
+  },
+
+  // Expression — below result, smaller
+  landscapeExprContainer: {
+    flexShrink: 1,
+  },
+  landscapeExprScroll: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+  },
+  landscapeExpr: {
+    fontWeight: '300',
+    letterSpacing: 0.3,
+    textAlign: 'right',
+  },
+
+  // ⌫ — bottom right
+  landscapeBackspace: {
+    alignSelf: 'flex-end',
+    marginTop: SPACE.sm,   // tight below expression
+    paddingVertical: SPACE.xs,
+    paddingHorizontal: SPACE.sm,
+  },
+  landscapeBackspaceIcon: {
+    fontSize: 24,
     fontWeight: '300',
   },
 });

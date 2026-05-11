@@ -16,8 +16,9 @@ interface ButtonProps {
   onPress: (v: ButtonValue) => void;
   isTablet: boolean;
   isLandscape?: boolean;
-  isTabletLandscape?: boolean;  // ← nuevo
+  isTabletLandscape?: boolean;
   isWide?: boolean;
+  dynamicSize?: number; // ← overrides everything when set
 }
 
 function getButtonType(value: ButtonValue): 'function' | 'operator' | 'number' {
@@ -33,11 +34,11 @@ export default function CalcButton({
   isLandscape = false,
   isTabletLandscape = false,
   isWide = false,
+  dynamicSize,
 }: ButtonProps) {
   const { theme } = useTheme();
   const type = getButtonType(value);
 
-  // Priority: tabletLandscape > landscape > tablet > phone
   const bp = isTabletLandscape
     ? BUTTON_SIZE.tabletLandscape
     : isLandscape
@@ -46,8 +47,10 @@ export default function CalcButton({
         ? BUTTON_SIZE.tablet
         : BUTTON_SIZE.phone;
 
-  const size = bp.size;
-  const gap = bp.gap;
+  // Dynamic size overrides token size — gap and font scale proportionally
+  const size = dynamicSize ?? bp.size;
+  const gap = dynamicSize ? Math.max(Math.floor(dynamicSize * 0.06), 2) : bp.gap;
+  const fontSize = dynamicSize ? Math.max(Math.floor(dynamicSize * 0.32), 12) : bp.fontSize;
 
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -94,7 +97,7 @@ export default function CalcButton({
 
   const textStyle: TextStyle = {
     color: textColor,
-    fontSize: bp.fontSize,
+    fontSize,
     fontWeight: '400',
     includeFontPadding: false,
     textAlignVertical: 'center',

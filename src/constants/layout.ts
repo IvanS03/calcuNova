@@ -13,22 +13,14 @@ export const SPACE = {
 
 export const BUTTON_SIZE = {
     phone: { size: 72, gap: 5, fontSize: 24 },
-    tablet: { size: 80, gap: 6, fontSize: 26 }, // ← bajado de 88 a 80
-    landscape: { size: 62, gap: 5, fontSize: 20 },
-    tabletLandscape: { size: 76, gap: 6, fontSize: 24 },
+    tablet: { size: 88, gap: 7, fontSize: 30 },
+    landscape: { size: 56, gap: 4, fontSize: 18 },
+    tabletLandscape: { size: 66, gap: 4, fontSize: 21 },
 };
 
 export const CONTENT_PADDING = {
     phone: 16,
     tablet: 24,
-};
-
-// Fixed display heights — prevents display from shrinking when sci grid appears
-export const DISPLAY_HEIGHT = {
-    phone: 140,
-    tablet: 180,  // ← fixed, never shrinks
-    landscape: 90,
-    tabletLandscape: 120,
 };
 
 export const TYPOGRAPHY = {
@@ -39,21 +31,33 @@ export const TYPOGRAPHY = {
         displayThreshold: 14,
     },
     tablet: {
-        expressionLarge: 52,   // ← bajado de 56
-        expressionMedium: 36,   // ← bajado de 38
-        resultSize: 26,   // ← bajado de 28
+        expressionLarge: 56,
+        expressionMedium: 38,
+        resultSize: 28,
         displayThreshold: 18,
     },
     landscape: {
-        expressionLarge: 34,
-        expressionMedium: 24,
-        resultSize: 18,
+        expressionLarge: 26,
+        expressionMedium: 20,
+        resultSize: 38,
         displayThreshold: 14,
     },
     tabletLandscape: {
-        expressionLarge: 44,
-        expressionMedium: 30,
-        resultSize: 22,
+        expressionLarge: 32,
+        expressionMedium: 24,
+        resultSize: 48,
         displayThreshold: 16,
     },
+};
+
+// Fixed UI chrome heights used for button size calculation
+export const UI_CHROME = {
+    // Portrait
+    topBar: 48,  // ModeBar + ThemeButton row
+    displayPortrait: 160, // fixed display area height (phone)
+    displayTablet: 200, // fixed display area height (tablet)
+    divider: 17,  // hairline + marginVertical*2
+    backspaceRow: 40,  // ⌫ row height
+    // Shared
+    rowGap: 2,  // marginVertical per row
 };
