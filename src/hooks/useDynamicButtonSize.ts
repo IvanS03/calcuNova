@@ -11,19 +11,26 @@ interface Options {
     isTablet: boolean;
     isLandscape: boolean;
     isTabletLandscape: boolean;
-    sciMode: boolean; // true when scientific grid is showing
+    sciMode: boolean;
 }
 
 interface Result {
-    buttonSize: number; // computed size in px
-    dynamicSize: number; // same — passed to Button components
+    buttonSize: number;
+    dynamicSize: number;
 }
 
-// Row/col counts per mode
 const BASIC_ROWS = 5;
-const SCI_ROWS = 3;  // scientific adds 3 rows
+const SCI_ROWS = 3;
 const BASIC_COLS = 4;
-const SCI_COLS = 5;  // scientific has 5 cols (4 + fixed)
+const SCI_COLS = 5;
+
+// How much bigger buttons get when sci mode is active
+// 1.18 = 18% bigger than the size calculated to fit everything
+const SCI_BOOST = 1.18;
+
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}
 
 export function useDynamicButtonSize({
     screenWidth,
@@ -38,21 +45,19 @@ export function useDynamicButtonSize({
     sciMode,
 }: Options): Result {
     return useMemo(() => {
-        const hPad = (isTablet ? 24 : 16) * 2; // left + right content padding
+        const hPad = (isTablet ? 24 : 16) * 2;
         const safeH = insetTop + insetBottom + SPACE.xs * 2;
         const safeW = insetLeft + insetRight + hPad;
 
         // ── LANDSCAPE ──────────────────────────────────
         if (isLandscape || isTabletLandscape) {
-            // Left column is 50% of screen width
             const colW = screenWidth * 0.5 - SPACE.md * 2 - SPACE.sm;
             const colH = screenHeight - safeH;
 
             const rows = sciMode ? BASIC_ROWS + SCI_ROWS : BASIC_ROWS;
             const cols = sciMode ? SCI_COLS : BASIC_COLS;
-            const gap = sciMode ? 2 : (isTabletLandscape ? 4 : 4);
+            const gap = 4;
 
-            // Max size from both constraints
             const byH = Math.floor((colH - rows * gap * 2) / rows);
             const byW = Math.floor((colW - cols * gap * 2) / cols);
             const raw = Math.min(byH, byW);
@@ -62,7 +67,10 @@ export function useDynamicButtonSize({
                 ? BUTTON_SIZE.tabletLandscape.size
                 : BUTTON_SIZE.landscape.size;
 
-            const size = clamp(raw, min, max);
+            // Apply boost and re-clamp so we never exceed max
+            const boosted = sciMode ? Math.floor(raw * SCI_BOOST) : raw;
+            const size = clamp(boosted, min, max);
+
             return { buttonSize: size, dynamicSize: size };
         }
 
@@ -92,7 +100,10 @@ export function useDynamicButtonSize({
             ? BUTTON_SIZE.tablet.size
             : BUTTON_SIZE.phone.size;
 
-        const size = clamp(raw, min, max);
+        // Apply boost and re-clamp
+        const boosted = sciMode ? Math.floor(raw * SCI_BOOST) : raw;
+        const size = clamp(boosted, min, max);
+
         return { buttonSize: size, dynamicSize: size };
 
     }, [
@@ -101,8 +112,4 @@ export function useDynamicButtonSize({
         isTablet, isLandscape, isTabletLandscape,
         sciMode,
     ]);
-}
-
-function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
 }

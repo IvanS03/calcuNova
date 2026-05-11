@@ -51,19 +51,45 @@ function getTypeColors(type: SciType, theme: any) {
   }
 }
 
-// ── Derived sizes from dynamicSize ───────────────────
-function deriveSizes(dynamicSize: number | undefined, fallbackHeight: number, fallbackFontSize: number, fallbackGap: number) {
+// Derives sci button dimensions so the grid matches basic grid width
+function deriveSizes(
+  dynamicSize: number | undefined,
+  fallbackHeight: number,
+  fallbackFontSize: number,
+  fallbackGap: number,
+  isPortrait: boolean,   // ← nuevo param
+) {
   if (!dynamicSize) {
     return {
       btnHeight: fallbackHeight,
+      btnWidth: undefined,   // undefined = flex:1 (fills row naturally)
       fontSize: fallbackFontSize,
       gap: fallbackGap,
     };
   }
+
+  const gap = Math.max(Math.floor(dynamicSize * 0.04), 2);
+
+  if (isPortrait) {
+    // Basic grid total width = 4 cols × (size + gap×2)
+    // Sci grid has 5 cols — solve for sci btn width:
+    // 5 × (w + gap×2) = 4 × (dynamicSize + gap×2)
+    const basicTotal = 4 * (dynamicSize + gap * 2);
+    const btnWidth = Math.floor(basicTotal / 5) - gap * 2;
+
+    // Make them taller than wide so they feel balanced
+    const btnHeight = Math.max(Math.floor(btnWidth * 0.72), 28);
+    const fontSize = Math.max(Math.floor(btnWidth * 0.20), 10);
+
+    return { btnHeight, btnWidth, fontSize, gap };
+  }
+
+  // Landscape — same as before, no width constraint needed
   return {
     btnHeight: Math.max(Math.floor(dynamicSize * 0.55), 28),
+    btnWidth: undefined,
     fontSize: Math.max(Math.floor(dynamicSize * 0.18), 10),
-    gap: Math.max(Math.floor(dynamicSize * 0.04), 2),
+    gap,
   };
 }
 
@@ -86,17 +112,28 @@ export default function ScientificGrid({
   const { theme } = useTheme();
   const [pageB, setPageB] = useState(false);
 
+  const isPortrait = !isLandscape && !isTabletLandscape;
+
   // Fallback sizes when dynamicSize is not provided
   const fallbackHeight = isTabletLandscape ? 44 : isLandscape ? 34 : isTablet ? 50 : 42;
   const fallbackFontSize = isTabletLandscape ? 13 : isLandscape ? 11 : isTablet ? 14 : 12;
   const fallbackGap = isLandscape || isTabletLandscape ? 2 : 3;
 
-  const { btnHeight, fontSize, gap } = deriveSizes(
+  const { btnHeight, btnWidth, fontSize, gap } = deriveSizes(
     dynamicSize,
     fallbackHeight,
     fallbackFontSize,
     fallbackGap,
+    isPortrait,
   );
+
+  // ── Container width matches basic grid exactly ───
+  // Basic grid: 4 cols × (dynamicSize + gap×2)
+  // Container also adds paddingHorizontal×2
+  const containerPadH = isLandscape ? 2 : 6;
+  const containerWidth = dynamicSize && isPortrait
+    ? 4 * (dynamicSize + gap * 2) + containerPadH * 2
+    : undefined; // undefined = full width in landscape
 
   const rows = pageB ? PAGE_B : PAGE_A;
 
@@ -108,7 +145,10 @@ export default function ScientificGrid({
         borderRadius: 16,
         marginBottom: isLandscape ? 4 : 6,
         paddingVertical: isLandscape ? 4 : 8,
-        paddingHorizontal: isLandscape ? 2 : 6,
+        paddingHorizontal: containerPadH,
+        // ← key fix: fixed width so background doesn't overflow
+        width: containerWidth,
+        alignSelf: containerWidth ? 'center' : undefined,
       },
     ]}>
       {rows.map((row, rowIdx) => (
@@ -124,6 +164,7 @@ export default function ScientificGrid({
               type={getSciType(value)}
               onPress={onPress}
               btnHeight={btnHeight}
+              btnWidth={btnWidth}
               fontSize={fontSize}
               gap={gap}
               theme={theme}
@@ -136,6 +177,7 @@ export default function ScientificGrid({
               pageB={pageB}
               onToggle={() => setPageB(v => !v)}
               btnHeight={btnHeight}
+              btnWidth={btnWidth}
               fontSize={fontSize}
               gap={gap}
               theme={theme}
@@ -147,6 +189,7 @@ export default function ScientificGrid({
               type="action"
               onPress={onPress}
               btnHeight={btnHeight}
+              btnWidth={btnWidth}
               fontSize={fontSize + 2}
               gap={gap}
               theme={theme}
@@ -158,6 +201,7 @@ export default function ScientificGrid({
               type="action"
               onPress={onPress}
               btnHeight={btnHeight}
+              btnWidth={btnWidth}
               fontSize={fontSize}
               gap={gap}
               theme={theme}
@@ -174,18 +218,16 @@ interface SwapButtonProps {
   pageB: boolean;
   onToggle: () => void;
   btnHeight: number;
+  btnWidth?: number;
   fontSize: number;
   gap: number;
   theme: any;
 }
 
 function SwapButton({
-  pageB,
-  onToggle,
-  btnHeight,
-  fontSize,
-  gap,
-  theme,
+  pageB, onToggle,
+  btnHeight, btnWidth,
+  fontSize, gap, theme,
 }: SwapButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -206,12 +248,15 @@ function SwapButton({
       onPress={onToggle}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[styles.btnOuter, { margin: gap }]}
+      style={[
+        btnWidth ? { width: btnWidth, margin: gap } : [styles.btnOuter, { margin: gap }],
+      ]}
     >
       <Animated.View style={[
         styles.btn,
         {
           height: btnHeight,
+          width: btnWidth ?? '100%',
           backgroundColor: pageB ? theme.btnOperator : theme.btnFunction,
           borderColor: theme.btnOperator,
           borderWidth: 1.5,
@@ -220,10 +265,7 @@ function SwapButton({
           overflow: 'hidden',
         },
       ]}>
-        {/* Accent bar */}
         <View style={[styles.accentBar, { backgroundColor: theme.btnOperator }]} />
-
-        {/* Label */}
         <Text style={[
           styles.swapLabel,
           {
@@ -233,17 +275,9 @@ function SwapButton({
         ]}>
           {pageB ? 'INV' : 'f⁻¹'}
         </Text>
-
-        {/* Page indicator dots */}
         <View style={styles.dotsRow}>
-          <View style={[
-            styles.dot,
-            { backgroundColor: !pageB ? theme.btnOperator : '#ffffff44' },
-          ]} />
-          <View style={[
-            styles.dot,
-            { backgroundColor: pageB ? '#fff' : '#ffffff22' },
-          ]} />
+          <View style={[styles.dot, { backgroundColor: !pageB ? theme.btnOperator : '#ffffff44' }]} />
+          <View style={[styles.dot, { backgroundColor: pageB ? '#fff' : '#ffffff22' }]} />
         </View>
       </Animated.View>
     </Pressable>
@@ -256,19 +290,16 @@ interface SciButtonProps {
   type: SciType;
   onPress: (v: ButtonValue) => void;
   btnHeight: number;
+  btnWidth?: number;    // ← nuevo, undefined = flex:1
   fontSize: number;
   gap: number;
   theme: any;
 }
 
 function SciButton({
-  value,
-  type,
-  onPress,
-  btnHeight,
-  fontSize,
-  gap,
-  theme,
+  value, type, onPress,
+  btnHeight, btnWidth,
+  fontSize, gap, theme,
 }: SciButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
   const colors = getTypeColors(type, theme);
@@ -290,12 +321,17 @@ function SciButton({
       onPress={() => onPress(value)}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
-      style={[styles.btnOuter, { margin: gap }]}
+      // ← si btnWidth definido usa width fija, si no flex:1
+      style={[
+        btnWidth ? { width: btnWidth, margin: gap } : [styles.btnOuter, { margin: gap }],
+      ]}
     >
       <Animated.View style={[
         styles.btn,
         {
           height: btnHeight,
+          // ← width fija o auto (flex:1 del padre)
+          width: btnWidth ?? '100%',
           backgroundColor: colors.bg,
           borderColor: colors.border,
           borderWidth: 1,
@@ -304,10 +340,7 @@ function SciButton({
           overflow: 'hidden',
         },
       ]}>
-        {/* Accent bar */}
         <View style={[styles.accentBar, { backgroundColor: colors.accent }]} />
-
-        {/* Label */}
         <View style={styles.labelRow}>
           <Text
             style={[styles.label, { color: colors.text, fontSize }]}
@@ -318,7 +351,6 @@ function SciButton({
             {value}
           </Text>
         </View>
-
       </Animated.View>
     </Pressable>
   );

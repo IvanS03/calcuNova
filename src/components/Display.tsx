@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -44,20 +44,26 @@ export default function Display({
     ? typo.expressionMedium
     : typo.expressionLarge;
 
-  // Animated values
   const resultOpacity = useRef(new Animated.Value(0)).current;
   const resultScale = useRef(new Animated.Value(0.92)).current;
   const mounted = useRef(false);
+  const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
   useEffect(() => {
     mounted.current = true;
-    return () => { mounted.current = false; };
+    return () => {
+      mounted.current = false;
+      animRef.current?.stop();
+    };
   }, []);
 
-  useEffect(() => {
+  // Stable animate function — avoids recreating on every render
+  const animateResult = useCallback((showing: boolean) => {
     if (!mounted.current) return;
-    const showing = result !== '';
-    Animated.parallel([
+
+    animRef.current?.stop();
+
+    animRef.current = Animated.parallel([
       Animated.timing(resultOpacity, {
         toValue: showing ? 1 : 0,
         duration: 200,
@@ -70,17 +76,27 @@ export default function Display({
         speed: 20,
         bounciness: 4,
       }),
-    ]).start();
-  }, [result !== '']);
+    ]);
+
+    animRef.current.start(({ finished }) => {
+      if (!finished || !mounted.current) return;
+      animRef.current = null;
+    });
+  }, []); // empty deps — Animated values are stable refs
+
+  useEffect(() => {
+    if (!mounted.current) return;
+    animateResult(result !== '');
+  }, [result !== '']); // only re-run when truthiness changes
 
   // ════════════════════════════════════════════════
-  // LANDSCAPE — todo al top, uno debajo del otro
+  // LANDSCAPE
   // ════════════════════════════════════════════════
   if (isAnyLandscape) {
     return (
       <View style={styles.landscapeContainer}>
 
-        {/* Result — grande arriba */}
+        {/* Result — large, top */}
         <Animated.Text
           style={[
             styles.landscapeResult,
@@ -103,7 +119,7 @@ export default function Display({
           { backgroundColor: theme.divider },
         ]} />
 
-        {/* Expression — debajo del resultado */}
+        {/* Expression */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -127,7 +143,7 @@ export default function Display({
           </Text>
         </ScrollView>
 
-        {/* ⌫ — justo debajo de la expresión */}
+        {/* ⌫ */}
         {onBackspace && (
           <TouchableOpacity
             onPress={onBackspace}
@@ -148,7 +164,7 @@ export default function Display({
   }
 
   // ════════════════════════════════════════════════
-  // PORTRAIT LAYOUT — unchanged
+  // PORTRAIT — fixed height, no flex
   // ════════════════════════════════════════════════
   return (
     <View style={[
@@ -196,15 +212,16 @@ export default function Display({
 }
 
 const styles = StyleSheet.create({
-
   // ── Portrait ─────────────────────────────────────
   portraitContainer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     alignItems: 'flex-end',
-    // Fixed height — buttons will fill the rest
-    height: 160,   // matches UI_CHROME.displayPortrait
+    height: 160,       // fixed — matches UI_CHROME.displayPortrait
     justifyContent: 'flex-end',
+  },
+  portraitContainerTablet: {
+    height: 200,                  // fixed — matches UI_CHROME.displayTablet
   },
   scroll: {
     flexGrow: 1,
@@ -218,42 +235,23 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     marginTop: 6,
   },
-  portraitContainerTablet: {
-    height: 200,           // matches UI_CHROME.displayTablet
-  },
 
   // ── Landscape ────────────────────────────────────
   landscapeContainer: {
-    // Top-aligned — no flex, no justifyContent
     paddingHorizontal: SPACE.md,
     paddingTop: SPACE.sm,
     paddingBottom: SPACE.sm,
-  },
-
-  // Result — big, top
-  landscapeResultWrapper: {
-    alignItems: 'flex-end',
-    paddingTop: SPACE.xs,
-    minHeight: 60,
-    justifyContent: 'center',
   },
   landscapeResult: {
     fontWeight: '200',
     letterSpacing: -1,
     textAlign: 'right',
     marginBottom: SPACE.xs,
-    minHeight: 54,      // reserved space even when empty
+    minHeight: 54,
   },
-
-  // Separator
   landscapeSeparator: {
     height: StyleSheet.hairlineWidth,
     marginVertical: SPACE.sm,
-  },
-
-  // Expression — below result, smaller
-  landscapeExprContainer: {
-    flexShrink: 1,
   },
   landscapeExprScroll: {
     flexGrow: 1,
@@ -264,11 +262,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textAlign: 'right',
   },
-
-  // ⌫ — bottom right
   landscapeBackspace: {
     alignSelf: 'flex-end',
-    marginTop: SPACE.sm,   // tight below expression
+    marginTop: SPACE.sm,
     paddingVertical: SPACE.xs,
     paddingHorizontal: SPACE.sm,
   },
