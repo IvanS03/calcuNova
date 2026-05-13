@@ -1,63 +1,69 @@
+import { Dimensions } from 'react-native';
+import { hp, isTabletDevice, rf, rs, rsp } from '../utils/responsive';
+
+const { height: H } = Dimensions.get('window');
+
 export const BREAKPOINTS = {
     tablet: 768,
     landscape: 600,
 };
 
+// Spacing — responsive
 export const SPACE = {
-    xs: 4,
-    sm: 8,
-    md: 16,
-    lg: 24,
-    xl: 32,
+    xs: rsp(4),
+    sm: rsp(8),
+    md: rsp(16),
+    lg: rsp(24),
+    xl: rsp(32),
 };
 
+// Button sizes — responsive
 export const BUTTON_SIZE = {
-    phone: { size: 72, gap: 5, fontSize: 24 },
-    tablet: { size: 88, gap: 7, fontSize: 30 },
-    landscape: { size: 56, gap: 4, fontSize: 18 },
-    tabletLandscape: { size: 66, gap: 4, fontSize: 21 },
+    phone: { size: rs(72), gap: rsp(5), fontSize: rf(24) },
+    tablet: { size: rs(88), gap: rsp(7), fontSize: rf(30) },
+    landscape: { size: rs(56), gap: rsp(4), fontSize: rf(18) },
+    tabletLandscape: { size: rs(66), gap: rsp(4), fontSize: rf(21) },
 };
 
 export const CONTENT_PADDING = {
-    phone: 16,
-    tablet: 24,
+    phone: rsp(16),
+    tablet: rsp(24),
 };
 
+// Typography — responsive fonts
 export const TYPOGRAPHY = {
     phone: {
-        expressionLarge: 42,
-        expressionMedium: 28,
-        resultSize: 22,
+        expressionLarge: rf(42),
+        expressionMedium: rf(28),
+        resultSize: rf(22),
         displayThreshold: 14,
     },
     tablet: {
-        expressionLarge: 56,
-        expressionMedium: 38,
-        resultSize: 28,
+        expressionLarge: rf(56),
+        expressionMedium: rf(38),
+        resultSize: rf(28),
         displayThreshold: 18,
     },
     landscape: {
-        expressionLarge: 26,
-        expressionMedium: 20,
-        resultSize: 38,
+        expressionLarge: rf(26),
+        expressionMedium: rf(20),
+        resultSize: rf(38),
         displayThreshold: 14,
     },
     tabletLandscape: {
-        expressionLarge: 32,
-        expressionMedium: 24,
-        resultSize: 48,
+        expressionLarge: rf(32),
+        expressionMedium: rf(24),
+        resultSize: rf(48),
         displayThreshold: 16,
     },
 };
 
-// Fixed UI chrome heights used for button size calculation
+// UI chrome — percentage of screen height so it scales with any DPI
 export const UI_CHROME = {
-    // Portrait
-    topBar: 48,  // ModeBar + ThemeButton row
-    displayPortrait: 160, // fixed display area height (phone)
-    displayTablet: 200, // fixed display area height (tablet)
-    divider: 17,  // hairline + marginVertical*2
-    backspaceRow: 40,  // ⌫ row height
-    // Shared
-    rowGap: 2,  // marginVertical per row
+    topBar: hp(6),    // 6% of screen height
+    displayPortrait: hp(isTabletDevice ? 22 : 20),
+    displayTablet: hp(22),
+    divider: rsp(17),
+    backspaceRow: hp(5),    // 5% of screen height
+    rowGap: rsp(2),
 };

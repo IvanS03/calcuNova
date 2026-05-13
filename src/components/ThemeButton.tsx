@@ -9,6 +9,7 @@ import {
     View,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { rf, rsp } from '../utils/responsive';
 
 export default function ThemeButton() {
     const { theme, isDark, mode, setMode } = useTheme();
@@ -25,7 +26,7 @@ export default function ThemeButton() {
                 style={[styles.btn, { backgroundColor: theme.btnFunction }]}
                 activeOpacity={0.8}
             >
-                <Icon size={18} color={theme.expressionText} />
+                <Icon size={rsp(18)} color={theme.expressionText} />
             </TouchableOpacity>
 
             <Modal
@@ -88,9 +89,9 @@ export default function ThemeButton() {
 
 const styles = StyleSheet.create({
     btn: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
+        width: rsp(38),
+        height: rsp(38),
+        borderRadius: rsp(19),
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -99,26 +100,26 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.4)',
         justifyContent: 'flex-start',
         alignItems: 'flex-end',
-        paddingTop: 90,
-        paddingRight: 16,
+        paddingTop: rsp(90),
+        paddingRight: rsp(16),
     },
     menu: {
-        width: 200,
-        borderRadius: 16,
+        width: rsp(210),
+        borderRadius: rsp(16),
         borderWidth: 1,
-        padding: 10,
+        padding: rsp(10),
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: rsp(4) },
         shadowOpacity: 0.2,
-        shadowRadius: 12,
+        shadowRadius: rsp(12),
         elevation: 10,
     },
     title: {
-        fontSize: 12,
+        fontSize: rf(12),
         fontWeight: '600',
         opacity: 0.5,
-        paddingLeft: 8,
-        marginBottom: 6,
+        paddingLeft: rsp(8),
+        marginBottom: rsp(6),
         letterSpacing: 0.5,
         textTransform: 'uppercase',
     },
@@ -126,16 +127,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 10,
-        paddingHorizontal: 10,
+        paddingVertical: rsp(10),
+        paddingHorizontal: rsp(10),
     },
     optionLeft: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: rsp(10),
     },
     optionText: {
-        fontSize: 15,
+        fontSize: rf(15),
         fontWeight: '500',
     },
 });

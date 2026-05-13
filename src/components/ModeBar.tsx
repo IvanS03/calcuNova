@@ -6,6 +6,7 @@ import {
     View,
 } from 'react-native';
 import { useTheme } from '../theme/ThemeContext';
+import { rf, rsp } from '../utils/responsive';
 
 // Defined here, imported by index.tsx and any other file that needs it
 export type AppMode = 'basic' | 'scientific' | 'converter';
@@ -68,38 +69,21 @@ export default function ModeBar({
 
 const styles = StyleSheet.create({
     container: {
-        borderRadius: 22,
-        padding: 3,
+        borderRadius: rsp(22),
+        padding: rsp(3),
     },
-    horizontal: {
-        flexDirection: 'row',
-    },
-    vertical: {
-        flexDirection: 'column',
-    },
+    horizontal: { flexDirection: 'row' },
+    vertical: { flexDirection: 'column' },
     pill: {
-        borderRadius: 19,
+        borderRadius: rsp(19),
         justifyContent: 'center',
         alignItems: 'center',
     },
-    pillH: {
-        paddingHorizontal: 16,
-        paddingVertical: 7,
-    },
-    pillV: {
-        paddingVertical: 12,
-        paddingHorizontal: 6,
-        width: 48,
-    },
+    pillH: { paddingHorizontal: rsp(16), paddingVertical: rsp(7) },
+    pillV: { paddingVertical: rsp(12), paddingHorizontal: rsp(6), width: rsp(48) },
     pillNormal: {},
     pillCompact: {},
-    label: {
-        fontWeight: '600',
-    },
-    labelMd: {
-        fontSize: 14,
-    },
-    labelSm: {
-        fontSize: 13,
-    },
+    label: { fontWeight: '600' },
+    labelMd: { fontSize: rf(14) },
+    labelSm: { fontSize: rf(13) },
 });

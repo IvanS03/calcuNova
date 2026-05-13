@@ -19,6 +19,7 @@ import { useAnimatedMode } from '../hooks/useAnimatedMode';
 import { useCalculator } from '../hooks/useCalculator';
 import { useDynamicButtonSize } from '../hooks/useDynamicButtonSize';
 import { useTheme } from '../theme/ThemeContext';
+import { rf } from '../utils/responsive';
 
 export default function Index() {
   const { width, height } = useWindowDimensions();
@@ -231,6 +232,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACE.sm,
+    minHeight: UI_CHROME.topBar,
   },
 
   // ── Single column ────────────────────────────────
@@ -243,9 +245,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'center',
     paddingRight: SPACE.sm,
+    height: UI_CHROME.backspaceRow,
   },
   backspaceBtn: { padding: SPACE.xs },
-  backspaceIcon: { fontSize: 22 },
+  backspaceIcon: { fontSize: rf(22) },
   buttonsWrapper: { paddingHorizontal: SPACE.xs },
   buttonsCenter: { alignItems: 'stretch' },
 

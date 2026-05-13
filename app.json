@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "calculator",
-    "slug": "calculator",
+    "name": "CalcuNova",
+    "slug": "CalcuNova",
     "version": "1.0.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "calculator",
+    "scheme": "calcunova",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon"
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.calculator"
+      "package": "com.anonymous.calcunova"
     },
     "web": {
       "output": "static",
@@ -34,13 +34,6 @@
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
-        }
-      ],
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-2943851881824222~5886519593",
-          "iosAppId": "ca-app-pub-2943851881824222/1344639355"
         }
       ],
       "expo-image",

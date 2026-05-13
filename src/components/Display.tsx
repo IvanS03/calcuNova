@@ -8,8 +8,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SPACE, TYPOGRAPHY } from '../constants/layout';
+import { SPACE, TYPOGRAPHY, UI_CHROME } from '../constants/layout';
 import { useTheme } from '../theme/ThemeContext';
+import { rf } from '../utils/responsive';
 
 interface DisplayProps {
   expression: string;
@@ -57,12 +58,9 @@ export default function Display({
     };
   }, []);
 
-  // Stable animate function — avoids recreating on every render
   const animateResult = useCallback((showing: boolean) => {
     if (!mounted.current) return;
-
     animRef.current?.stop();
-
     animRef.current = Animated.parallel([
       Animated.timing(resultOpacity, {
         toValue: showing ? 1 : 0,
@@ -77,26 +75,21 @@ export default function Display({
         bounciness: 4,
       }),
     ]);
-
     animRef.current.start(({ finished }) => {
       if (!finished || !mounted.current) return;
       animRef.current = null;
     });
-  }, []); // empty deps — Animated values are stable refs
+  }, []);
 
   useEffect(() => {
     if (!mounted.current) return;
     animateResult(result !== '');
-  }, [result !== '']); // only re-run when truthiness changes
+  }, [result !== '']);
 
-  // ════════════════════════════════════════════════
-  // LANDSCAPE
-  // ════════════════════════════════════════════════
+  // ── LANDSCAPE ──────────────────────────────────
   if (isAnyLandscape) {
     return (
       <View style={styles.landscapeContainer}>
-
-        {/* Result — large, top */}
         <Animated.Text
           style={[
             styles.landscapeResult,
@@ -113,13 +106,8 @@ export default function Display({
           {result !== '' ? result : ' '}
         </Animated.Text>
 
-        {/* Separator */}
-        <View style={[
-          styles.landscapeSeparator,
-          { backgroundColor: theme.divider },
-        ]} />
+        <View style={[styles.landscapeSeparator, { backgroundColor: theme.divider }]} />
 
-        {/* Expression */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -130,9 +118,7 @@ export default function Display({
               styles.landscapeExpr,
               {
                 fontSize: exprFontSize,
-                color: result !== ''
-                  ? theme.resultText
-                  : theme.expressionText,
+                color: result !== '' ? theme.resultText : theme.expressionText,
               },
             ]}
             numberOfLines={1}
@@ -143,33 +129,29 @@ export default function Display({
           </Text>
         </ScrollView>
 
-        {/* ⌫ */}
         {onBackspace && (
           <TouchableOpacity
             onPress={onBackspace}
             activeOpacity={0.6}
             style={styles.landscapeBackspace}
           >
-            <Text style={[
-              styles.landscapeBackspaceIcon,
-              { color: theme.resultText },
-            ]}>
+            <Text style={[styles.landscapeBackspaceIcon, { color: theme.resultText }]}>
               ⌫
             </Text>
           </TouchableOpacity>
         )}
-
       </View>
     );
   }
 
-  // ════════════════════════════════════════════════
-  // PORTRAIT — fixed height, no flex
-  // ════════════════════════════════════════════════
+  // ── PORTRAIT — height from UI_CHROME (percentage-based) ──
   return (
     <View style={[
       styles.portraitContainer,
-      isTablet && styles.portraitContainerTablet,
+      {
+        // Height from UI_CHROME which is now hp() based
+        height: isTablet ? UI_CHROME.displayTablet : UI_CHROME.displayPortrait,
+      },
     ]}>
       <ScrollView
         horizontal
@@ -179,10 +161,7 @@ export default function Display({
         <Text
           style={[
             styles.expression,
-            {
-              fontSize: exprFontSize,
-              color: theme.expressionText,
-            },
+            { fontSize: exprFontSize, color: theme.expressionText },
           ]}
           numberOfLines={1}
           adjustsFontSizeToFit
@@ -214,14 +193,10 @@ export default function Display({
 const styles = StyleSheet.create({
   // ── Portrait ─────────────────────────────────────
   portraitContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: SPACE.md,
+    paddingVertical: SPACE.sm,
     alignItems: 'flex-end',
-    height: 160,       // fixed — matches UI_CHROME.displayPortrait
     justifyContent: 'flex-end',
-  },
-  portraitContainerTablet: {
-    height: 200,                  // fixed — matches UI_CHROME.displayTablet
   },
   scroll: {
     flexGrow: 1,
@@ -233,7 +208,7 @@ const styles = StyleSheet.create({
   },
   result: {
     fontWeight: '300',
-    marginTop: 6,
+    marginTop: SPACE.xs,
   },
 
   // ── Landscape ────────────────────────────────────
@@ -247,7 +222,7 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
     textAlign: 'right',
     marginBottom: SPACE.xs,
-    minHeight: 54,
+    minHeight: rf(54),
   },
   landscapeSeparator: {
     height: StyleSheet.hairlineWidth,
@@ -269,7 +244,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACE.sm,
   },
   landscapeBackspaceIcon: {
-    fontSize: 24,
+    fontSize: rf(24),
     fontWeight: '300',
   },
 });

@@ -2,9 +2,12 @@
  * Safely evaluates a math expression string.
  * Supports basic arithmetic + scientific functions.
  * Trig functions use DEGREES.
+ * % is context-aware:
+ *   - After + or -: percentage of the left operand  (20+10% → 22)
+ *   - After × or ÷: simple division by 100          (20×10% → 2)
+ *   - Standalone:   simple division by 100          (10%    → 0.1)
  */
 
-// Degree-based trig + math helpers injected into Function scope
 const MATH_HELPERS = `
   const __sin   = x => Math.sin(x * Math.PI / 180);
   const __cos   = x => Math.cos(x * Math.PI / 180);
@@ -25,12 +28,99 @@ const MATH_HELPERS = `
   const __expe  = x => Math.exp(x);
 `;
 
+/**
+ * Resolves contextual % BEFORE other sanitization.
+ *
+ * Cases:
+ *   number + number%  →  number + (number * leftOperand / 100)
+ *   number - number%  →  number - (number * leftOperand / 100)
+ *   number × number%  →  number * (number / 100)     [simple]
+ *   number ÷ number%  →  number / (number / 100)     [simple]
+ *   standalone number% →  (number / 100)             [simple]
+ */
+function resolvePercent(expr: string): string {
+  // Find all % occurrences and process them right-to-left
+  // so indices don't shift as we replace
+  let result = expr;
+
+  // Pattern: captures everything up to and including the % token
+  // We process iteratively until no % remains
+  let safety = 0;
+  while (result.includes('%') && safety++ < 20) {
+    // Find the LAST % in the expression
+    const pctIdx = result.lastIndexOf('%');
+
+    // Extract the number immediately before %
+    // Walk left from pctIdx-1 to find the start of the number
+    let numEnd = pctIdx - 1;
+    if (numEnd < 0) break;
+
+    // Skip any closing parens (e.g. sin(30)%)
+    let scanIdx = numEnd;
+    let numStr = '';
+
+    if (result[scanIdx] === ')') {
+      // Find matching open paren
+      let depth = 0;
+      while (scanIdx >= 0) {
+        if (result[scanIdx] === ')') depth++;
+        if (result[scanIdx] === '(') depth--;
+        if (depth === 0) break;
+        scanIdx--;
+      }
+      numStr = result.slice(scanIdx, numEnd + 1);
+    } else {
+      // Walk back over digits, dots, e (scientific notation)
+      while (scanIdx >= 0 && /[0-9.]/.test(result[scanIdx])) {
+        scanIdx--;
+      }
+      scanIdx++; // move back to first digit
+      numStr = result.slice(scanIdx, numEnd + 1);
+    }
+
+    if (!numStr) break;
+
+    const numStart = scanIdx;
+
+    // Look at what comes before the number (the operator)
+    const before = result.slice(0, numStart).trimEnd();
+    const lastOp = before.slice(-1);
+
+    let replacement: string;
+
+    if (lastOp === '+' || lastOp === '-') {
+      // Context-aware: find the left operand
+      // Everything before the operator is the left side
+      const leftExpr = before.slice(0, before.length - 1).trim();
+
+      if (leftExpr) {
+        // 20+10% → 20+(20*10/100)
+        // Use the whole left expression as context
+        replacement = `(${numStr}*(${leftExpr})/100)`;
+      } else {
+        // Nothing on the left (e.g. just "+10%"), fallback to simple
+        replacement = `(${numStr}/100)`;
+      }
+    } else {
+      // ×, ÷, ^, or standalone → simple /100
+      replacement = `(${numStr}/100)`;
+    }
+
+    // Replace "numStr%" with the resolved expression
+    result =
+      result.slice(0, numStart) +
+      replacement +
+      result.slice(pctIdx + 1);
+  }
+
+  return result;
+}
+
 function sanitize(expr: string): string {
   return expr
     .replace(/×/g, '*')
     .replace(/÷/g, '/')
     .replace(/,/g, '.')
-    .replace(/([0-9.]+)\s*%/g, '($1/100)')
     .replace(/([0-9.]+|\))\s*\*\*2/g, '($1**2)')
     .replace(/([0-9.]+|\))\s*\*\*3/g, '($1**3)')
     .replace(/\bπ\b/g, `(${Math.PI})`)
@@ -67,8 +157,7 @@ function isBalanced(expr: string): boolean {
   return depth === 0;
 }
 
-function isSafeExpression(expr: string): boolean {
-  // Allow digits, operators, parens, dots, spaces, and our __helper names
+function isSafe(expr: string): boolean {
   return /^[0-9+\-*/.() _a-zA-Z]+$/.test(expr);
 }
 
@@ -76,16 +165,20 @@ export function evaluateExpression(expr: string): string {
   if (!expr || expr.trim() === '') return '';
 
   try {
-    const sanitized = sanitize(expr);
+    // Step 1: resolve % with context BEFORE sanitizing operators
+    const withPercent = resolvePercent(expr);
 
-    // Must not end with an operator, dot, or opening paren
+    // Step 2: sanitize operators and function names
+    const sanitized = sanitize(withPercent);
+
+    // Must not end with an operator or open paren
     if (/[+\-*/.(__]$/.test(sanitized)) return '';
 
     // Parentheses must be balanced
     if (!isBalanced(sanitized)) return '';
 
-    // Safety check on characters
-    if (!isSafeExpression(sanitized)) return '';
+    // Safety check
+    if (!isSafe(sanitized)) return '';
 
     // eslint-disable-next-line no-new-func
     const result = Function(
@@ -99,11 +192,10 @@ export function evaluateExpression(expr: string): string {
     if (!isFinite(result)) return 'Error';
     if (isNaN(result)) return 'Error';
 
-    // Clean up floating point noise (e.g. 0.1 + 0.2 = 0.3, not 0.30000000004)
     const rounded = parseFloat(result.toFixed(10));
     return String(rounded);
 
   } catch {
-    return ''; // Incomplete or invalid expression
+    return '';
   }
 }

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { BUTTON_SIZE, SPACE, UI_CHROME } from '../constants/layout';
+import { rsp } from '../utils/responsive';
 
 interface Options {
     screenWidth: number;
@@ -23,13 +24,10 @@ const BASIC_ROWS = 5;
 const SCI_ROWS = 3;
 const BASIC_COLS = 4;
 const SCI_COLS = 5;
+const SCI_BOOST = 1.08;
 
-// How much bigger buttons get when sci mode is active
-// 1.18 = 18% bigger than the size calculated to fit everything
-const SCI_BOOST = 1.18;
-
-function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
+function clamp(v: number, min: number, max: number) {
+    return Math.min(Math.max(v, min), max);
 }
 
 export function useDynamicButtonSize({
@@ -45,9 +43,9 @@ export function useDynamicButtonSize({
     sciMode,
 }: Options): Result {
     return useMemo(() => {
-        const hPad = (isTablet ? 24 : 16) * 2;
+        const hPad = (isTablet ? SPACE.md * 2 : SPACE.md * 2);
         const safeH = insetTop + insetBottom + SPACE.xs * 2;
-        const safeW = insetLeft + insetRight + hPad;
+        const safeW = insetLeft + insetRight + hPad * 2;
 
         // ── LANDSCAPE ──────────────────────────────────
         if (isLandscape || isTabletLandscape) {
@@ -56,21 +54,18 @@ export function useDynamicButtonSize({
 
             const rows = sciMode ? BASIC_ROWS + SCI_ROWS : BASIC_ROWS;
             const cols = sciMode ? SCI_COLS : BASIC_COLS;
-            const gap = 4;
+            const gap = rsp(4);
 
             const byH = Math.floor((colH - rows * gap * 2) / rows);
             const byW = Math.floor((colW - cols * gap * 2) / cols);
             const raw = Math.min(byH, byW);
 
-            const min = isTabletLandscape ? 48 : 40;
+            const min = isTabletLandscape ? rsp(48) : rsp(40);
             const max = isTabletLandscape
                 ? BUTTON_SIZE.tabletLandscape.size
                 : BUTTON_SIZE.landscape.size;
 
-            // Apply boost and re-clamp so we never exceed max
-            const boosted = sciMode ? Math.floor(raw * SCI_BOOST) : raw;
-            const size = clamp(boosted, min, max);
-
+            const size = clamp(sciMode ? Math.floor(raw * SCI_BOOST) : raw, min, max);
             return { buttonSize: size, dynamicSize: size };
         }
 
@@ -89,27 +84,23 @@ export function useDynamicButtonSize({
 
         const rows = sciMode ? BASIC_ROWS + SCI_ROWS : BASIC_ROWS;
         const cols = sciMode ? SCI_COLS : BASIC_COLS;
-        const gap = isTablet ? 7 : 5;
+        const gap = isTablet ? rsp(7) : rsp(5);
 
         const byH = Math.floor((availH - rows * gap * 2) / rows);
         const byW = Math.floor((availW - cols * gap * 2) / cols);
         const raw = Math.min(byH, byW);
 
-        const min = isTablet ? 60 : 52;
+        const min = isTablet ? rsp(60) : rsp(52);
         const max = isTablet
             ? BUTTON_SIZE.tablet.size
             : BUTTON_SIZE.phone.size;
 
-        // Apply boost and re-clamp
-        const boosted = sciMode ? Math.floor(raw * SCI_BOOST) : raw;
-        const size = clamp(boosted, min, max);
-
+        const size = clamp(sciMode ? Math.floor(raw * SCI_BOOST) : raw, min, max);
         return { buttonSize: size, dynamicSize: size };
 
     }, [
         screenWidth, screenHeight,
         insetTop, insetBottom, insetLeft, insetRight,
-        isTablet, isLandscape, isTabletLandscape,
-        sciMode,
+        isTablet, isLandscape, isTabletLandscape, sciMode,
     ]);
 }
