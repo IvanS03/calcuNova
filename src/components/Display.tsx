@@ -50,6 +50,9 @@ export default function Display({
   const mounted = useRef(false);
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
 
+  // Auto-scroll to end when expression grows
+  const scrollRef = useRef<ScrollView>(null);
+
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -57,6 +60,16 @@ export default function Display({
       animRef.current?.stop();
     };
   }, []);
+
+  // Scroll to end when expression grows,
+  // scroll to start when it resets to '0'
+  useEffect(() => {
+    if (expression === '0') {
+      scrollRef.current?.scrollTo({ x: 0, animated: false });
+    } else {
+      scrollRef.current?.scrollToEnd({ animated: false });
+    }
+  }, [expression]);
 
   const animateResult = useCallback((showing: boolean) => {
     if (!mounted.current) return;
@@ -90,6 +103,7 @@ export default function Display({
   if (isAnyLandscape) {
     return (
       <View style={styles.landscapeContainer}>
+
         <Animated.Text
           style={[
             styles.landscapeResult,
@@ -108,26 +122,29 @@ export default function Display({
 
         <View style={[styles.landscapeSeparator, { backgroundColor: theme.divider }]} />
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.landscapeExprScroll}
-        >
-          <Text
-            style={[
-              styles.landscapeExpr,
-              {
-                fontSize: exprFontSize,
-                color: result !== '' ? theme.resultText : theme.expressionText,
-              },
-            ]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.4}
+        {/* ── Key fix: ScrollView needs own width, not from parent alignItems ── */}
+        <View style={styles.exprWrapper}>
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.exprScrollContent}
+            // Prevent ScrollView from collapsing
+            style={styles.exprScroll}
           >
-            {expression}
-          </Text>
-        </ScrollView>
+            <Text
+              style={[
+                styles.landscapeExpr,
+                {
+                  fontSize: exprFontSize,
+                  color: result !== '' ? theme.resultText : theme.expressionText,
+                },
+              ]}
+            >
+              {expression}
+            </Text>
+          </ScrollView>
+        </View>
 
         {onBackspace && (
           <TouchableOpacity
@@ -140,36 +157,40 @@ export default function Display({
             </Text>
           </TouchableOpacity>
         )}
+
       </View>
     );
   }
 
-  // ── PORTRAIT — height from UI_CHROME (percentage-based) ──
+  // ── PORTRAIT ───────────────────────────────────
   return (
     <View style={[
       styles.portraitContainer,
-      {
-        // Height from UI_CHROME which is now hp() based
-        height: isTablet ? UI_CHROME.displayTablet : UI_CHROME.displayPortrait,
-      },
+      { height: isTablet ? UI_CHROME.displayTablet : UI_CHROME.displayPortrait },
     ]}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        <Text
-          style={[
-            styles.expression,
-            { fontSize: exprFontSize, color: theme.expressionText },
-          ]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.4}
+
+      {/* ── Key fix: wrapper gives ScrollView a definite width ── */}
+      <View style={styles.exprWrapper}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.exprScrollContent}
+          style={styles.exprScroll}
         >
-          {expression}
-        </Text>
-      </ScrollView>
+          <Text
+            style={[
+              styles.expression,
+              {
+                fontSize: exprFontSize,
+                color: theme.expressionText,
+              },
+            ]}
+          >
+            {expression}
+          </Text>
+        </ScrollView>
+      </View>
 
       <Animated.Text
         style={[
@@ -186,6 +207,7 @@ export default function Display({
       >
         = {result}
       </Animated.Text>
+
     </View>
   );
 }
@@ -193,22 +215,41 @@ export default function Display({
 const styles = StyleSheet.create({
   // ── Portrait ─────────────────────────────────────
   portraitContainer: {
+    // No alignItems: 'flex-end' here — it breaks ScrollView width
     paddingHorizontal: SPACE.md,
     paddingVertical: SPACE.sm,
-    alignItems: 'flex-end',
     justifyContent: 'flex-end',
+    width: '100%',
   },
-  scroll: {
+
+  // ── Shared scroll fix ────────────────────────────
+  // Wrapper gives ScrollView a concrete width to fill
+  exprWrapper: {
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  // ScrollView fills the wrapper and doesn't collapse
+  exprScroll: {
+    width: '100%',
+  },
+  // Content right-aligned — text grows leftward as expression gets longer
+  exprScrollContent: {
     flexGrow: 1,
     justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingLeft: SPACE.xl,   // ensures short expressions don't snap to far left
   },
+
   expression: {
     fontWeight: '300',
     letterSpacing: 0.5,
+    textAlign: 'right',
   },
   result: {
     fontWeight: '300',
     marginTop: SPACE.xs,
+    textAlign: 'right',
+    width: '100%',
   },
 
   // ── Landscape ────────────────────────────────────
@@ -223,14 +264,11 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginBottom: SPACE.xs,
     minHeight: rf(54),
+    width: '100%',
   },
   landscapeSeparator: {
     height: StyleSheet.hairlineWidth,
     marginVertical: SPACE.sm,
-  },
-  landscapeExprScroll: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
   },
   landscapeExpr: {
     fontWeight: '300',

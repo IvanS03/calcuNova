@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { evaluateExpression } from '../utils/evaluate';
 
 export type ButtonValue =
@@ -40,6 +40,10 @@ export function useCalculator() {
   const [expression, setExpression] = useState('0');
   const [result, setResult] = useState('');
   const [justEvaluated, setJustEvaluated] = useState(false);
+
+  // ── History refs — stable, no re-render ─────────
+  const lastEvaluatedExpr = useRef('');
+  const lastEvaluatedResult = useRef('');
 
   const updateExpression = useCallback((newExpr: string) => {
     setExpression(newExpr);
@@ -99,6 +103,9 @@ export function useCalculator() {
     if (value === '=') {
       const evaluated = evaluateExpression(expression);
       if (evaluated && evaluated !== 'Error') {
+        // Store for history before updating state
+        lastEvaluatedExpr.current = expression;
+        lastEvaluatedResult.current = evaluated;
         setExpression(evaluated);
         setResult('');
         setJustEvaluated(true);
@@ -211,5 +218,11 @@ export function useCalculator() {
 
   }, [expression, justEvaluated, updateExpression]);
 
-  return { expression, result, handlePress };
+  return {
+    expression,
+    result,
+    handlePress,
+    lastEvaluatedExpr,   // ← ref, stable
+    lastEvaluatedResult, // ← ref, stable
+  };
 }
