@@ -1,12 +1,15 @@
 import { DraftingCompass } from 'lucide-react-native';
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+    Animated,
+    Easing,
     FlatList,
     Modal,
     Pressable,
     StyleSheet,
     Text,
     TouchableOpacity,
+    useWindowDimensions,
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +35,50 @@ export default function HistoryPanel({
 }: HistoryPanelProps) {
     const { theme } = useTheme();
     const insets = useSafeAreaInsets();
+
+    const { width: screenW } = useWindowDimensions();
+    const panelWidth = screenW * 0.78;
+
+    const slideX = useRef(new Animated.Value(panelWidth)).current;
+    const overlayOpacity = useRef(new Animated.Value(0)).current;
+    const [modalMounted, setModalMounted] = useState(false);
+
+    useEffect(() => {
+        if (visible) {
+            setModalMounted(true);
+            Animated.parallel([
+                Animated.timing(slideX, {
+                    toValue: 0,
+                    duration: 280,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(overlayOpacity, {
+                    toValue: 1,
+                    duration: 280,
+                    easing: Easing.out(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        } else {
+            Animated.parallel([
+                Animated.timing(slideX, {
+                    toValue: panelWidth,
+                    duration: 220,
+                    easing: Easing.in(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(overlayOpacity, {
+                    toValue: 0,
+                    duration: 220,
+                    easing: Easing.in(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ]).start(({ finished }) => {
+                if (finished) setModalMounted(false);
+            });
+        }
+    }, [visible]);
 
     const renderEntry = useCallback(({ item, index }: {
         item: HistoryEntry;
@@ -86,26 +133,35 @@ export default function HistoryPanel({
         </View>
     );
 
+    if (!modalMounted) return null;
+
     return (
         <Modal
-            visible={visible}
+            visible={modalMounted}
             transparent
-            animationType="slide"
+            animationType="none"
             onRequestClose={onClose}
             statusBarTranslucent
         >
-            {/* Backdrop — tap to close */}
-            <Pressable style={styles.backdrop} onPress={onClose} />
+            {/* Dimmed overlay — fades in/out independently */}
+            <Animated.View
+                style={[styles.backdrop, { opacity: overlayOpacity }]}
+                pointerEvents="box-none"
+            >
+                <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+            </Animated.View>
 
-            {/* Panel — slides in from right */}
-            <View
+            {/* Panel — slides in from the right */}
+            <Animated.View
                 style={[
                     styles.panel,
                     {
+                        width: panelWidth,
                         backgroundColor: theme.historyBg,
                         paddingTop: insets.top + SPACE.sm,
                         paddingBottom: insets.bottom + SPACE.sm,
                         borderLeftColor: theme.divider,
+                        transform: [{ translateX: slideX }],
                     },
                 ]}
             >
@@ -171,12 +227,10 @@ export default function HistoryPanel({
                     )}
                 />
 
-            </View>
+            </Animated.View>
         </Modal>
     );
 }
-
-const PANEL_WIDTH = '78%';
 
 const styles = StyleSheet.create({
     // ── Modal backdrop ───────────────────────────────
@@ -186,7 +240,7 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: 'rgba(0,0,0,0.45)',
+        backgroundColor: 'rgba(0,0,0,0.55)',
     },
 
     // ── Panel ────────────────────────────────────────
@@ -195,7 +249,7 @@ const styles = StyleSheet.create({
         top: 0,
         bottom: 0,
         right: 0,
-        width: PANEL_WIDTH,
+        // width set dynamically via panelWidth
         borderLeftWidth: StyleSheet.hairlineWidth,
         // Shadow for iOS
         shadowColor: '#000',
