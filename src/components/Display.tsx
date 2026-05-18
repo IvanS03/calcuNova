@@ -67,7 +67,13 @@ export default function Display({
     if (expression === '0') {
       scrollRef.current?.scrollTo({ x: 0, animated: false });
     } else {
-      scrollRef.current?.scrollToEnd({ animated: false });
+      // Double requestAnimationFrame: first rAF = layout measured,
+      // second rAF = paint complete, scroll is accurate
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollToEnd({ animated: false });
+        });
+      });
     }
   }, [expression]);
 
