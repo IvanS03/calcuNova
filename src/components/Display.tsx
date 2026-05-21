@@ -2,11 +2,10 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
-  ScrollView,
+  Platform,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  TextInput,
+  View
 } from 'react-native';
 import { SPACE, TYPOGRAPHY, UI_CHROME } from '../constants/layout';
 import { useTheme } from '../theme/ThemeContext';
@@ -18,7 +17,11 @@ interface DisplayProps {
   isTablet: boolean;
   isLandscape?: boolean;
   isTabletLandscape?: boolean;
-  onBackspace?: () => void;
+  // Cursor / editing
+  selection?: { start: number; end: number } | undefined;
+  onSelectionChange?: (pos: number) => void;
+  onDirectEdit?: (text: string) => void;
+  editError?: string;
 }
 
 export default function Display({
@@ -27,10 +30,12 @@ export default function Display({
   isTablet,
   isLandscape = false,
   isTabletLandscape = false,
-  onBackspace,
+  selection,
+  onSelectionChange,
+  onDirectEdit,
+  editError = '',
 }: DisplayProps) {
   const { theme } = useTheme();
-
   const isAnyLandscape = isLandscape || isTabletLandscape;
 
   const typo = isTabletLandscape
@@ -45,13 +50,12 @@ export default function Display({
     ? typo.expressionMedium
     : typo.expressionLarge;
 
+  // ── Animations ──────────────────────────────────
   const resultOpacity = useRef(new Animated.Value(0)).current;
   const resultScale = useRef(new Animated.Value(0.92)).current;
+  const errorOpacity = useRef(new Animated.Value(0)).current;
   const mounted = useRef(false);
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  // Auto-scroll to end when expression grows
-  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -60,22 +64,6 @@ export default function Display({
       animRef.current?.stop();
     };
   }, []);
-
-  // Scroll to end when expression grows,
-  // scroll to start when it resets to '0'
-  useEffect(() => {
-    if (expression === '0') {
-      scrollRef.current?.scrollTo({ x: 0, animated: false });
-    } else {
-      // Double requestAnimationFrame: first rAF = layout measured,
-      // second rAF = paint complete, scroll is accurate
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          scrollRef.current?.scrollToEnd({ animated: false });
-        });
-      });
-    }
-  }, [expression]);
 
   const animateResult = useCallback((showing: boolean) => {
     if (!mounted.current) return;
@@ -102,14 +90,48 @@ export default function Display({
 
   useEffect(() => {
     if (!mounted.current) return;
-    animateResult(result !== '');
-  }, [result !== '']);
+    animateResult(result !== '' && editError === '');
+  }, [result !== '', editError]);
 
-  // ── LANDSCAPE ──────────────────────────────────
+  // Error fade
+  useEffect(() => {
+    if (!mounted.current) return;
+    Animated.timing(errorOpacity, {
+      toValue: editError !== '' ? 1 : 0,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [editError !== '']);
+
+  // ── Shared TextInput props ───────────────────────
+  const inputProps = {
+    value: expression,
+    selection: selection,
+    onSelectionChange: onSelectionChange
+      ? ({ nativeEvent: { selection: sel } }: any) => onSelectionChange(sel.start)
+      : undefined,
+    onChangeText: onDirectEdit,
+    // Prevent system keyboard from showing — user uses calc buttons
+    showSoftInputOnFocus: false,
+    caretHidden: false,
+    editable: true,
+    multiline: false,
+    // iOS: prevent autocorrect and suggestions
+    autoCorrect: false,
+    autoCapitalize: 'none' as const,
+    spellCheck: false,
+    // Allow copy but filter paste via onChangeText validation
+    contextMenuHidden: false,
+  };
+
+  // ════════════════════════════════════════════════
+  // LANDSCAPE
+  // ════════════════════════════════════════════════
   if (isAnyLandscape) {
     return (
       <View style={styles.landscapeContainer}>
 
+        {/* Result — large, top */}
         <Animated.Text
           style={[
             styles.landscapeResult,
@@ -128,91 +150,86 @@ export default function Display({
 
         <View style={[styles.landscapeSeparator, { backgroundColor: theme.divider }]} />
 
-        {/* ── Key fix: ScrollView needs own width, not from parent alignItems ── */}
-        <View style={styles.exprWrapper}>
-          <ScrollView
-            ref={scrollRef}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.exprScrollContent}
-            // Prevent ScrollView from collapsing
-            style={styles.exprScroll}
-          >
-            <Text
-              style={[
-                styles.landscapeExpr,
-                {
-                  fontSize: exprFontSize,
-                  color: result !== '' ? theme.resultText : theme.expressionText,
-                },
-              ]}
-            >
-              {expression}
-            </Text>
-          </ScrollView>
-        </View>
+        {/* Expression input */}
+        <TextInput
+          {...inputProps}
+          style={[
+            styles.landscapeExpr,
+            {
+              fontSize: exprFontSize,
+              color: result !== '' ? theme.resultText : theme.expressionText,
+            },
+          ]}
+          textAlign="right"
+        />
 
-        {onBackspace && (
-          <TouchableOpacity
-            onPress={onBackspace}
-            activeOpacity={0.6}
-            style={styles.landscapeBackspace}
-          >
-            <Text style={[styles.landscapeBackspaceIcon, { color: theme.resultText }]}>
-              ⌫
-            </Text>
-          </TouchableOpacity>
-        )}
+        {/* Error message */}
+        <Animated.Text
+          style={[
+            styles.errorText,
+            { color: '#ff6b6b', opacity: errorOpacity },
+          ]}
+        >
+          {editError}
+        </Animated.Text>
 
       </View>
     );
   }
 
-  // ── PORTRAIT ───────────────────────────────────
+  // ════════════════════════════════════════════════
+  // PORTRAIT
+  // ════════════════════════════════════════════════
   return (
     <View style={[
       styles.portraitContainer,
       { height: isTablet ? UI_CHROME.displayTablet : UI_CHROME.displayPortrait },
     ]}>
 
-      {/* ── Key fix: wrapper gives ScrollView a definite width ── */}
-      <View style={styles.exprWrapper}>
-        <ScrollView
-          ref={scrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.exprScrollContent}
-          style={styles.exprScroll}
-        >
-          <Text
-            style={[
-              styles.expression,
-              {
-                fontSize: exprFontSize,
-                color: theme.expressionText,
-              },
-            ]}
-          >
-            {expression}
-          </Text>
-        </ScrollView>
-      </View>
-
-      <Animated.Text
+      {/* Expression input — fills available space */}
+      <TextInput
+        {...inputProps}
         style={[
-          styles.result,
+          styles.expression,
           {
-            fontSize: typo.resultSize,
-            color: theme.resultText,
-            opacity: resultOpacity,
-            transform: [{ scale: resultScale }],
+            fontSize: exprFontSize,
+            color: theme.expressionText,
+            // Tint cursor to brand color
+            ...(Platform.OS === 'ios'
+              ? { tintColor: theme.btnOperator }
+              : { cursorColor: theme.btnOperator }),
           },
         ]}
-        numberOfLines={1}
-        adjustsFontSizeToFit
-      >
-        = {result}
-      </Animated.Text>
+        textAlign="right"
+      />
+
+      {/* Result or error — below expression */}
+      {editError !== '' ? (
+        <Animated.Text
+          style={[
+            styles.errorText,
+            { color: '#ff6b6b', opacity: errorOpacity },
+          ]}
+        >
+          ⚠ {editError}
+        </Animated.Text>
+      ) : (
+        <Animated.Text
+          style={[
+            styles.result,
+            {
+              fontSize: typo.resultSize,
+              color: theme.resultText,
+              opacity: resultOpacity,
+              transform: [{ scale: resultScale }],
+            },
+          ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
+          = {result}
+        </Animated.Text>
+      )}
 
     </View>
   );
@@ -221,41 +238,29 @@ export default function Display({
 const styles = StyleSheet.create({
   // ── Portrait ─────────────────────────────────────
   portraitContainer: {
-    // No alignItems: 'flex-end' here — it breaks ScrollView width
     paddingHorizontal: SPACE.md,
     paddingVertical: SPACE.sm,
     justifyContent: 'flex-end',
     width: '100%',
   },
-
-  // ── Shared scroll fix ────────────────────────────
-  // Wrapper gives ScrollView a concrete width to fill
-  exprWrapper: {
-    width: '100%',
-    alignSelf: 'stretch',
-  },
-  // ScrollView fills the wrapper and doesn't collapse
-  exprScroll: {
-    width: '100%',
-  },
-  // Content right-aligned — text grows leftward as expression gets longer
-  exprScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingLeft: SPACE.xl,   // ensures short expressions don't snap to far left
-  },
-
   expression: {
     fontWeight: '300',
     letterSpacing: 0.5,
-    textAlign: 'right',
+    paddingVertical: SPACE.xs,
+    // Remove default TextInput border/background
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   result: {
     fontWeight: '300',
     marginTop: SPACE.xs,
     textAlign: 'right',
-    width: '100%',
+  },
+  errorText: {
+    fontSize: rf(13),
+    fontWeight: '500',
+    textAlign: 'right',
+    marginTop: SPACE.xs,
   },
 
   // ── Landscape ────────────────────────────────────
@@ -279,16 +284,8 @@ const styles = StyleSheet.create({
   landscapeExpr: {
     fontWeight: '300',
     letterSpacing: 0.3,
-    textAlign: 'right',
-  },
-  landscapeBackspace: {
-    alignSelf: 'flex-end',
-    marginTop: SPACE.sm,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     paddingVertical: SPACE.xs,
-    paddingHorizontal: SPACE.sm,
-  },
-  landscapeBackspaceIcon: {
-    fontSize: rf(24),
-    fontWeight: '300',
   },
 });

@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
-import { BUTTON_SIZE, SPACE, UI_CHROME } from '../constants/layout';
-import { rsp } from '../utils/responsive';
+import { BUTTON_SIZE } from '../constants/layout';
 
 interface Options {
     screenWidth: number;
@@ -24,9 +23,9 @@ const BASIC_ROWS = 5;
 const SCI_ROWS = 3;
 const BASIC_COLS = 4;
 const SCI_COLS = 5;
-const SCI_BOOST = 1.08;
+const SCI_BOOST = 1.06;
 
-function clamp(v: number, min: number, max: number) {
+function clamp(v: number, min: number, max: number): number {
     return Math.min(Math.max(v, min), max);
 }
 
@@ -43,64 +42,79 @@ export function useDynamicButtonSize({
     sciMode,
 }: Options): Result {
     return useMemo(() => {
-        const hPad = (isTablet ? SPACE.md * 2 : SPACE.md * 2);
-        const safeH = insetTop + insetBottom + SPACE.xs * 2;
-        const safeW = insetLeft + insetRight + hPad * 2;
+        // ── Available canvas after safe area ─────────
+        const canvasW = screenWidth - insetLeft - insetRight;
+        const canvasH = screenHeight - insetTop - insetBottom;
 
-        // ── LANDSCAPE ──────────────────────────────────
+        // ── LANDSCAPE ────────────────────────────────
         if (isLandscape || isTabletLandscape) {
-            const colW = screenWidth * 0.5 - SPACE.md * 2 - SPACE.sm;
-            const colH = screenHeight - safeH;
+            // Left column: 50% of canvas minus divider margin
+            const colW = canvasW * 0.50 - canvasW * 0.04;
+            // Full height minus top/bottom padding (1% each side)
+            const colH = canvasH * 0.98;
 
             const rows = sciMode ? BASIC_ROWS + SCI_ROWS : BASIC_ROWS;
             const cols = sciMode ? SCI_COLS : BASIC_COLS;
-            const gap = rsp(4);
+
+            // Gap: 0.5% of canvas height per side
+            const gap = canvasH * 0.005;
 
             const byH = Math.floor((colH - rows * gap * 2) / rows);
             const byW = Math.floor((colW - cols * gap * 2) / cols);
             const raw = Math.min(byH, byW);
 
-            const min = isTabletLandscape ? rsp(48) : rsp(40);
+            // Min: 5% of canvas height / Max: token from layout
+            const min = canvasH * 0.05;
             const max = isTabletLandscape
                 ? BUTTON_SIZE.tabletLandscape.size
                 : BUTTON_SIZE.landscape.size;
 
-            const size = clamp(sciMode ? Math.floor(raw * SCI_BOOST) : raw, min, max);
+            const boosted = sciMode ? Math.floor(raw * SCI_BOOST) : raw;
+            const size = clamp(boosted, min, max);
             return { buttonSize: size, dynamicSize: size };
         }
 
-        // ── PORTRAIT ───────────────────────────────────
-        const displayH = isTablet
-            ? UI_CHROME.displayTablet
-            : UI_CHROME.displayPortrait;
+        // ── PORTRAIT ─────────────────────────────────
+        // Chrome percentages of canvas height:
+        //   topBar:   6%
+        //   display:  22% phone / 24% tablet
+        //   divider:  0.5%
+        //   padding:  1% top + 1% bottom
+        const topBarH = canvasH * 0.06;
+        const displayH = canvasH * (isTablet ? 0.24 : 0.22);
+        const dividerH = canvasH * 0.005;
+        const paddingH = canvasH * 0.02;
 
-        const chromeH = UI_CHROME.topBar
-            + displayH
-            + UI_CHROME.divider
-            + UI_CHROME.backspaceRow;
+        const chromeH = topBarH + displayH + dividerH + paddingH;
+        const availH = canvasH - chromeH;
 
-        const availH = screenHeight - safeH - chromeH;
-        const availW = screenWidth - safeW;
+        // Horizontal padding: 3% each side
+        const availW = canvasW * 0.94;
 
         const rows = sciMode ? BASIC_ROWS + SCI_ROWS : BASIC_ROWS;
         const cols = sciMode ? SCI_COLS : BASIC_COLS;
-        const gap = isTablet ? rsp(7) : rsp(5);
+
+        // Gap: 0.6% of canvas height per side
+        const gap = canvasH * 0.006;
 
         const byH = Math.floor((availH - rows * gap * 2) / rows);
         const byW = Math.floor((availW - cols * gap * 2) / cols);
         const raw = Math.min(byH, byW);
 
-        const min = isTablet ? rsp(60) : rsp(52);
+        // Min: 7% of canvas height / Max: token from layout
+        const min = canvasH * 0.07;
         const max = isTablet
             ? BUTTON_SIZE.tablet.size
             : BUTTON_SIZE.phone.size;
 
-        const size = clamp(sciMode ? Math.floor(raw * SCI_BOOST) : raw, min, max);
+        const boosted = sciMode ? Math.floor(raw * SCI_BOOST) : raw;
+        const size = clamp(boosted, min, max);
         return { buttonSize: size, dynamicSize: size };
 
     }, [
         screenWidth, screenHeight,
         insetTop, insetBottom, insetLeft, insetRight,
-        isTablet, isLandscape, isTabletLandscape, sciMode,
+        isTablet, isLandscape, isTabletLandscape,
+        sciMode,
     ]);
 }

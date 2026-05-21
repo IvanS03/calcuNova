@@ -3,10 +3,9 @@ import React, { useCallback, useState } from 'react';
 import {
   Animated,
   StyleSheet,
-  Text,
   TouchableOpacity,
   useWindowDimensions,
-  View,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ButtonGrid from '../components/ButtonGrid';
@@ -18,11 +17,11 @@ import ThemeButton from '../components/ThemeButton';
 import UnitConverter from '../components/UnitConverter';
 import { CONTENT_PADDING, SPACE, UI_CHROME } from '../constants/layout';
 import { useAnimatedMode } from '../hooks/useAnimatedMode';
-import { useCalculator } from '../hooks/useCalculator';
+import { ButtonValue, useCalculator } from '../hooks/useCalculator';
 import { useDynamicButtonSize } from '../hooks/useDynamicButtonSize';
 import { HistoryEntry, useHistory } from '../hooks/useHistory';
 import { useTheme } from '../theme/ThemeContext';
-import { rf, rsp } from '../utils/responsive';
+import { rsp } from '../utils/responsive';
 
 export default function Index() {
   const { width, height } = useWindowDimensions();
@@ -33,6 +32,10 @@ export default function Index() {
     expression,
     result,
     handlePress,
+    selection,           // ← nuevo
+    onSelectionChange,   // ← nuevo
+    onDirectEdit,        // ← nuevo
+    editError,           // ← nuevo
     lastEvaluatedExpr,
     lastEvaluatedResult,
   } = useCalculator();
@@ -114,6 +117,11 @@ export default function Index() {
     </TouchableOpacity>
   ) : null;
 
+  // ── Long press: () → +/- ───────────────────────
+  const handleLongPress = useCallback((value: ButtonValue) => {
+    if (value === '()') handleCalcPress('+/-');   // ← sin 'as any'
+  }, [handleCalcPress]);
+
   // ── Shared buttons ───────────────────────────────
   const CalcButtons = (
     <View style={styles.buttonsCenter}>
@@ -128,6 +136,7 @@ export default function Index() {
       )}
       <ButtonGrid
         onPress={handleCalcPress}
+        onLongPress={handleLongPress}
         isTablet={isTablet}
         isLandscape={twoColumn && !isTablet}
         isTabletLandscape={isTabletLandscape}
@@ -205,9 +214,12 @@ export default function Index() {
               expression={expression}
               result={result}
               isTablet={false}
+              selection={selection}
+              onSelectionChange={onSelectionChange}
+              onDirectEdit={onDirectEdit}
+              editError={editError}
               isLandscape={!isTablet}
               isTabletLandscape={isTabletLandscape}
-              onBackspace={() => handleCalcPress('⌫')}
             />
           </Animated.View>
         </View>
@@ -264,23 +276,13 @@ export default function Index() {
             expression={expression}
             result={result}
             isTablet={isTablet}
+            selection={selection}
+            onSelectionChange={onSelectionChange}
+            onDirectEdit={onDirectEdit}
+            editError={editError}
           />
 
           <View style={[styles.divider, { backgroundColor: theme.divider }]} />
-
-          <View style={[styles.backspaceRow, { height: UI_CHROME.backspaceRow }]}>
-            {appMode === 'basic' && (
-              <TouchableOpacity
-                onPress={() => handleCalcPress('⌫')}
-                style={styles.backspaceBtn}
-                activeOpacity={0.6}
-              >
-                <Text style={[styles.backspaceIcon, { color: theme.headerIcon }]}>
-                  ⌫
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
 
           <View style={styles.buttonsWrapper}>
             {CalcButtons}
@@ -327,13 +329,6 @@ const styles = StyleSheet.create({
     marginVertical: SPACE.sm,
     marginHorizontal: SPACE.xs,
   },
-  backspaceRow: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingRight: SPACE.sm,
-  },
-  backspaceBtn: { padding: SPACE.xs },
-  backspaceIcon: { fontSize: rf(22) },
   buttonsWrapper: { paddingHorizontal: SPACE.xs },
   buttonsCenter: { alignItems: 'stretch' },
 
