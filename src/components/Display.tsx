@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
   Platform,
   ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   View
 } from 'react-native';
@@ -54,18 +55,13 @@ export default function Display({
       ? typo.expressionMedium
       : typo.expressionLarge;
 
-  // ── Animated values ──────────────────────────────
   const resultOpacity = useRef(new Animated.Value(0)).current;
   const resultScale = useRef(new Animated.Value(0.92)).current;
   const errorOpacity = useRef(new Animated.Value(0)).current;
-  const opColorAnim = useRef(new Animated.Value(0)).current;
 
   const mounted = useRef(false);
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const scrollRef = useRef<ScrollView>(null);
-
-  // Dynamic operator width
-  const [lastCharWidth, setLastCharWidth] = useState(0);
 
   useEffect(() => {
     mounted.current = true;
@@ -75,23 +71,6 @@ export default function Display({
       animRef.current?.stop();
     };
   }, []);
-
-  // ── Operator error highlight ─────────────────────
-  useEffect(() => {
-    if (!mounted.current) return;
-
-    if (showIncompleteWarning) {
-      opColorAnim.setValue(1);
-    } else {
-      opColorAnim.setValue(0);
-    }
-  }, [showIncompleteWarning]);
-
-  // Interpolate color
-  const opColor = opColorAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.expressionText, '#ff453a'],
-  });
 
   // ── Result animation ─────────────────────────────
   const animateResult = useCallback((showing: boolean) => {
@@ -174,9 +153,10 @@ export default function Display({
   };
 
   // ── Expression field ─────────────────────────────
+  // When warning: nested <Text> for pixel-perfect inline color on last char
+  // When normal: TextInput with cursor support
   const ExpressionField = (
     <View style={styles.exprWrapper}>
-
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -184,53 +164,39 @@ export default function Display({
         style={styles.exprScroll}
         contentContainerStyle={styles.exprScrollContent}
       >
-
-        <TextInput
-          {...inputProps}
-          style={[
-            styles.expression,
-            {
-              fontSize: exprFontSize,
-              color: theme.expressionText,
-
-              ...(Platform.OS === 'ios'
-                ? { tintColor: theme.btnOperator }
-                : { cursorColor: theme.btnOperator }),
-            },
-          ]}
-          textAlign="right"
-        />
-
-        {showIncompleteWarning && expression.length > 0 && (
-
-          <Animated.Text
-            onLayout={(e) => {
-              setLastCharWidth(e.nativeEvent.layout.width);
-            }}
+        {showIncompleteWarning && expression.length > 0 ? (
+          // Nested Text: same layout as TextInput, last char in red
+          <Text
+            style={[
+              styles.expression,
+              { fontSize: exprFontSize },
+            ]}
+            numberOfLines={1}
+          >
+            <Text style={{ color: theme.expressionText }}>
+              {expression.slice(0, -1)}
+            </Text>
+            <Text style={{ color: '#ff453a' }}>
+              {expression.slice(-1)}
+            </Text>
+          </Text>
+        ) : (
+          <TextInput
+            {...inputProps}
             style={[
               styles.expression,
               {
                 fontSize: exprFontSize,
-                color: opColor,
-
-                position: 'absolute',
-                right: 0,
-
-                transform: [
-                  {
-                    translateX: -lastCharWidth * 0.18,
-                  },
-                ],
+                color: theme.expressionText,
+                ...(Platform.OS === 'ios'
+                  ? { tintColor: theme.btnOperator }
+                  : { cursorColor: theme.btnOperator }),
               },
             ]}
-          >
-            {expression.slice(-1)}
-          </Animated.Text>
-
+            textAlign="right"
+          />
         )}
-
       </ScrollView>
-
     </View>
   );
 
@@ -302,51 +268,34 @@ export default function Display({
         />
 
         <View style={styles.exprWrapper}>
-
-          <TextInput
-            {...inputProps}
-            style={[
-              styles.landscapeExpr,
-              {
-                fontSize: exprFontSize,
-
-                color:
-                  result !== ''
-                    ? theme.resultText
-                    : theme.expressionText,
-              },
-            ]}
-            textAlign="right"
-          />
-
-          {showIncompleteWarning && expression.length > 0 && (
-
-            <Animated.Text
-              onLayout={(e) => {
-                setLastCharWidth(e.nativeEvent.layout.width);
-              }}
+          {showIncompleteWarning && expression.length > 0 ? (
+            <Text
+              style={[
+                styles.landscapeExpr,
+                { fontSize: exprFontSize },
+              ]}
+              numberOfLines={1}
+            >
+              <Text style={{ color: result !== '' ? theme.resultText : theme.expressionText }}>
+                {expression.slice(0, -1)}
+              </Text>
+              <Text style={{ color: '#ff453a' }}>
+                {expression.slice(-1)}
+              </Text>
+            </Text>
+          ) : (
+            <TextInput
+              {...inputProps}
               style={[
                 styles.landscapeExpr,
                 {
                   fontSize: exprFontSize,
-                  color: opColor,
-
-                  position: 'absolute',
-                  right: 0,
-
-                  transform: [
-                    {
-                      translateX: -lastCharWidth * 0.18,
-                    },
-                  ],
+                  color: result !== '' ? theme.resultText : theme.expressionText,
                 },
               ]}
-            >
-              {expression.slice(-1)}
-            </Animated.Text>
-
+              textAlign="right"
+            />
           )}
-
         </View>
 
         {editError !== '' && (
