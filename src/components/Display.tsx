@@ -213,10 +213,13 @@ export default function Display({
       >
         {expression.slice(0, -1)}
       </Text>
-      <Animated.View style={{
-        transform: [{ scale: opScale }],
-        justifyContent: 'center',
-      }}>
+      <View
+        style={{
+          width: exprFontSize * 0.7,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <Animated.Text
           style={[
             styles.landscapeExpr,
@@ -228,7 +231,7 @@ export default function Display({
         >
           {expression.slice(-1)}
         </Animated.Text>
-      </Animated.View>
+      </View>
     </ScrollView>
   ) : (
     <TextInput
@@ -310,10 +313,13 @@ export default function Display({
             >
               {expression.slice(0, -1)}
             </Text>
-            <Animated.View style={{
-              transform: [{ scale: opScale }],
-              justifyContent: 'center',
-            }}>
+            <View
+              style={{
+                width: exprFontSize * 0.7,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               {/* scale → useNativeDriver: true  → Animated.View */}
               <Animated.Text
                 style={[
@@ -326,7 +332,7 @@ export default function Display({
                 {/* color → useNativeDriver: false → Animated.Text */}
                 {expression.slice(-1)}
               </Animated.Text>
-            </Animated.View>
+            </View>
           </ScrollView>
         ) : (
           <TextInput
@@ -383,7 +389,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     textAlign: 'right',
-
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     lineHeight: rf(48),
     minHeight: rf(48),
   },
@@ -394,13 +401,13 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   exprScrollContentRight: {
     flexGrow: 1,
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignItems: 'flex-end',
   },
   result: {
     fontWeight: '300',
@@ -439,7 +446,8 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     paddingVertical: SPACE.xs,
     textAlign: 'right',
-
+    includeFontPadding: false,
+    textAlignVertical: 'center',
     lineHeight: rf(48),
     minHeight: rf(48),
   },
