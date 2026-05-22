@@ -23,6 +23,12 @@ import { HistoryEntry, useHistory } from '../hooks/useHistory';
 import { useTheme } from '../theme/ThemeContext';
 import { rsp } from '../utils/responsive';
 
+// ─────────────────────────────────────────────────
+// Layout preference for the button grid in portrait
+// Options: 'flex-start' | 'center' | 'flex-end'
+// ─────────────────────────────────────────────────
+const BUTTONS_VERTICAL_ALIGN: 'flex-start' | 'center' | 'flex-end' = 'center';
+
 export default function Index() {
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -32,10 +38,11 @@ export default function Index() {
     expression,
     result,
     handlePress,
-    selection,           // ← nuevo
-    onSelectionChange,   // ← nuevo
-    onDirectEdit,        // ← nuevo
-    editError,           // ← nuevo
+    selection,
+    onSelectionChange,
+    onDirectEdit,
+    editError,
+    showIncompleteWarning,
     lastEvaluatedExpr,
     lastEvaluatedResult,
   } = useCalculator();
@@ -74,8 +81,6 @@ export default function Index() {
   const handleCalcPress = useCallback((value: Parameters<typeof handlePress>[0]) => {
     handlePress(value);
     if (value === '=') {
-      // Refs are updated inside handlePress synchronously before setState
-      // Use setTimeout(0) to read after state flush
       setTimeout(() => {
         const expr = lastEvaluatedExpr.current;
         const res = lastEvaluatedResult.current;
@@ -86,14 +91,10 @@ export default function Index() {
 
   // ── Tap history entry → load result ─────────────
   const handleSelectEntry = useCallback((entry: HistoryEntry) => {
-    // Simulate pressing the digits of the result
     handlePress('AC');
-    // Set expression directly by pressing each char
-    // Simplest: just use AC then inject via a small helper
-    // We'll expose a setter approach instead — inject result as expression
     entry.result.split('').forEach(char => {
       if (char === '-') {
-        handlePress('+/-' as any);
+        handlePress('+/-');
       } else if (char === '.') {
         handlePress('.');
       } else if (/[0-9]/.test(char)) {
@@ -117,9 +118,9 @@ export default function Index() {
     </TouchableOpacity>
   ) : null;
 
-  // ── Long press: () → +/- ───────────────────────
+  // ── Long press: () → +/- ────────────────────────
   const handleLongPress = useCallback((value: ButtonValue) => {
-    if (value === '()') handleCalcPress('+/-');   // ← sin 'as any'
+    if (value === '()') handleCalcPress('+/-');
   }, [handleCalcPress]);
 
   // ── Shared buttons ───────────────────────────────
@@ -220,6 +221,7 @@ export default function Index() {
               editError={editError}
               isLandscape={!isTablet}
               isTabletLandscape={isTabletLandscape}
+              showIncompleteWarning={showIncompleteWarning}
             />
           </Animated.View>
         </View>
@@ -272,6 +274,7 @@ export default function Index() {
       ) : (
         <Animated.View style={[styles.flex, animStyle]}>
 
+          {/* Display — fixed height */}
           <Display
             expression={expression}
             result={result}
@@ -280,10 +283,15 @@ export default function Index() {
             onSelectionChange={onSelectionChange}
             onDirectEdit={onDirectEdit}
             editError={editError}
+            showIncompleteWarning={showIncompleteWarning}
           />
 
           <View style={[styles.divider, { backgroundColor: theme.divider }]} />
 
+          {/* Spacer — pushes buttons toward BUTTONS_VERTICAL_ALIGN */}
+          <View style={styles.buttonsSpacer} />
+
+          {/* Buttons */}
           <View style={styles.buttonsWrapper}>
             {CalcButtons}
           </View>
@@ -329,8 +337,18 @@ const styles = StyleSheet.create({
     marginVertical: SPACE.sm,
     marginHorizontal: SPACE.xs,
   },
-  buttonsWrapper: { paddingHorizontal: SPACE.xs },
-  buttonsCenter: { alignItems: 'stretch' },
+
+  // Spacer: flex grows to push buttons down (flex-end),
+  // half-grows to center them, or stays 0 to keep them at top
+  buttonsSpacer: {
+    flex: ({ 'flex-end': 1, 'center': 0.5, 'flex-start': 0 })[BUTTONS_VERTICAL_ALIGN],
+  },
+  buttonsWrapper: {
+    paddingHorizontal: SPACE.xs,
+  },
+  buttonsCenter: {
+    alignItems: 'stretch',
+  },
 
   // ── History button ───────────────────────────────
   historyBtn: {

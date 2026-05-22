@@ -113,6 +113,7 @@ export function useCalculator() {
   const [justEvaluated, setJustEvaluated] = useState(false);
   const [editError, setEditError] = useState('');
   const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined);
+  const [showIncompleteWarning, setShowIncompleteWarning] = useState(false);
 
   // Tracks where cursor is between button presses
   const cursorPosRef = useRef(1);
@@ -163,6 +164,7 @@ export function useCalculator() {
   }, [apply, showError]);
 
   const handlePress = useCallback((value: ButtonValue) => {
+    if (value !== '=') setShowIncompleteWarning(false);
     const pos = cursorPosRef.current;
 
     // ── Clear ──────────────────────────────────────
@@ -190,8 +192,9 @@ export function useCalculator() {
         setJustEvaluated(true);
         apply(evaluated, evaluated.length);
         setResult('');
-      } else if (evaluated === 'Error') {
-        showError('Operación inválida');
+      } else {
+        // Incomplete or invalid — show warning
+        setShowIncompleteWarning(true);
       }
       return;
     }
@@ -292,6 +295,7 @@ export function useCalculator() {
     selection,
     onSelectionChange,
     onDirectEdit,
+    showIncompleteWarning,
     editError,
     lastEvaluatedExpr,
     lastEvaluatedResult,

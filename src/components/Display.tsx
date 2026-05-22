@@ -3,7 +3,9 @@ import {
   Animated,
   Easing,
   Platform,
+  ScrollView,
   StyleSheet,
+  Text,
   TextInput,
   View
 } from 'react-native';
@@ -17,11 +19,11 @@ interface DisplayProps {
   isTablet: boolean;
   isLandscape?: boolean;
   isTabletLandscape?: boolean;
-  // Cursor / editing
   selection?: { start: number; end: number } | undefined;
   onSelectionChange?: (pos: number) => void;
   onDirectEdit?: (text: string) => void;
   editError?: string;
+  showIncompleteWarning?: boolean;  // ← triggered only on = press
 }
 
 export default function Display({
@@ -34,6 +36,7 @@ export default function Display({
   onSelectionChange,
   onDirectEdit,
   editError = '',
+  showIncompleteWarning = false,
 }: DisplayProps) {
   const { theme } = useTheme();
   const isAnyLandscape = isLandscape || isTabletLandscape;
@@ -50,12 +53,19 @@ export default function Display({
     ? typo.expressionMedium
     : typo.expressionLarge;
 
-  // ── Animations ──────────────────────────────────
+  // ── Animated values ──────────────────────────────
   const resultOpacity = useRef(new Animated.Value(0)).current;
   const resultScale = useRef(new Animated.Value(0.92)).current;
   const errorOpacity = useRef(new Animated.Value(0)).current;
+
+  // Scale uses useNativeDriver: true
+  const opScale = useRef(new Animated.Value(1)).current;
+  // Color uses useNativeDriver: false — kept SEPARATE from opScale
+  const opColorAnim = useRef(new Animated.Value(0)).current;
+
   const mounted = useRef(false);
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -65,6 +75,59 @@ export default function Display({
     };
   }, []);
 
+  // ── Operator pulse — only on showIncompleteWarning ─
+  useEffect(() => {
+    if (!mounted.current) return;
+
+    if (showIncompleteWarning) {
+      opScale.setValue(1);
+      opColorAnim.setValue(0);
+
+      // Scale animation — useNativeDriver: true (runs on UI thread)
+      Animated.sequence([
+        Animated.timing(opScale, {
+          toValue: 1.4,
+          duration: 120,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.spring(opScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          speed: 16,
+          bounciness: 10,
+        }),
+      ]).start();
+
+      // Color animation — useNativeDriver: false (JS thread, separate from scale)
+      Animated.sequence([
+        Animated.timing(opColorAnim, {
+          toValue: 1,
+          duration: 120,
+          useNativeDriver: false,
+        }),
+        Animated.delay(600),
+        Animated.timing(opColorAnim, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: false,
+        }),
+      ]).start();
+
+    } else {
+      // Reset immediately when user continues typing
+      opScale.setValue(1);
+      opColorAnim.setValue(0);
+    }
+  }, [showIncompleteWarning]);
+
+  // Interpolate color for the last operator
+  const opColor = opColorAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [theme.expressionText, '#ff453a'],
+  });
+
+  // ── Result animation ─────────────────────────────
   const animateResult = useCallback((showing: boolean) => {
     if (!mounted.current) return;
     animRef.current?.stop();
@@ -93,7 +156,7 @@ export default function Display({
     animateResult(result !== '' && editError === '');
   }, [result !== '', editError]);
 
-  // Error fade
+  // ── Error animation ──────────────────────────────
   useEffect(() => {
     if (!mounted.current) return;
     Animated.timing(errorOpacity, {
@@ -103,7 +166,16 @@ export default function Display({
     }).start();
   }, [editError !== '']);
 
-  // ── Shared TextInput props ───────────────────────
+  // ── Scroll to end ────────────────────────────────
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        scrollRef.current?.scrollToEnd({ animated: false });
+      });
+    });
+  }, [expression]);
+
+  // ── TextInput shared props ───────────────────────
   const inputProps = {
     value: expression,
     selection: selection,
@@ -111,18 +183,94 @@ export default function Display({
       ? ({ nativeEvent: { selection: sel } }: any) => onSelectionChange(sel.start)
       : undefined,
     onChangeText: onDirectEdit,
-    // Prevent system keyboard from showing — user uses calc buttons
     showSoftInputOnFocus: false,
     caretHidden: false,
     editable: true,
     multiline: false,
-    // iOS: prevent autocorrect and suggestions
     autoCorrect: false,
     autoCapitalize: 'none' as const,
     spellCheck: false,
-    // Allow copy but filter paste via onChangeText validation
     contextMenuHidden: false,
   };
+
+  // ── Expression field ─────────────────────────────
+  // When warning active: split last char with animated red color + scale
+  // When normal: TextInput with cursor support
+  const ExpressionField = showIncompleteWarning ? (
+    <ScrollView
+      ref={scrollRef}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.exprScroll}
+      contentContainerStyle={styles.exprScrollContent}
+    >
+      <Text
+        style={[
+          styles.expression,
+          { fontSize: exprFontSize, color: theme.expressionText },
+        ]}
+        numberOfLines={1}
+      >
+        {expression.slice(0, -1)}
+      </Text>
+      <Animated.View style={{
+        transform: [{ scale: opScale }],
+        justifyContent: 'center',
+      }}>
+        <Animated.Text
+          style={[
+            styles.landscapeExpr,
+            {
+              fontSize: exprFontSize,
+              color: opColor,
+            },
+          ]}
+        >
+          {expression.slice(-1)}
+        </Animated.Text>
+      </Animated.View>
+    </ScrollView>
+  ) : (
+    <TextInput
+      {...inputProps}
+      style={[
+        styles.expression,
+        {
+          fontSize: exprFontSize,
+          color: theme.expressionText,
+          ...(Platform.OS === 'ios'
+            ? { tintColor: theme.btnOperator }
+            : { cursorColor: theme.btnOperator }),
+        },
+      ]}
+      textAlign="right"
+    />
+  );
+
+  // ── Sub-display (result / error) ─────────────────
+  const SubDisplay = editError !== '' ? (
+    <Animated.Text
+      style={[styles.subText, { color: '#ff6b6b', opacity: errorOpacity }]}
+    >
+      ⚠ {editError}
+    </Animated.Text>
+  ) : (
+    <Animated.Text
+      style={[
+        styles.result,
+        {
+          fontSize: typo.resultSize,
+          color: theme.resultText,
+          opacity: resultOpacity,
+          transform: [{ scale: resultScale }],
+        },
+      ]}
+      numberOfLines={1}
+      adjustsFontSizeToFit
+    >
+      = {result}
+    </Animated.Text>
+  );
 
   // ════════════════════════════════════════════════
   // LANDSCAPE
@@ -131,15 +279,10 @@ export default function Display({
     return (
       <View style={styles.landscapeContainer}>
 
-        {/* Result — large, top */}
         <Animated.Text
           style={[
             styles.landscapeResult,
-            {
-              fontSize: typo.resultSize,
-              color: theme.btnOperator,
-              opacity: resultOpacity,
-            },
+            { fontSize: typo.resultSize, color: theme.btnOperator, opacity: resultOpacity },
           ]}
           numberOfLines={1}
           adjustsFontSizeToFit
@@ -150,28 +293,62 @@ export default function Display({
 
         <View style={[styles.landscapeSeparator, { backgroundColor: theme.divider }]} />
 
-        {/* Expression input */}
-        <TextInput
-          {...inputProps}
-          style={[
-            styles.landscapeExpr,
-            {
-              fontSize: exprFontSize,
-              color: result !== '' ? theme.resultText : theme.expressionText,
-            },
-          ]}
-          textAlign="right"
-        />
+        {showIncompleteWarning ? (
+          <ScrollView
+            ref={scrollRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.exprScroll}
+            contentContainerStyle={styles.exprScrollContentRight}
+          >
+            <Text
+              style={[
+                styles.landscapeExpr,
+                { fontSize: exprFontSize, color: theme.expressionText },
+              ]}
+              numberOfLines={1}
+            >
+              {expression.slice(0, -1)}
+            </Text>
+            <Animated.View style={{
+              transform: [{ scale: opScale }],
+              justifyContent: 'center',
+            }}>
+              {/* scale → useNativeDriver: true  → Animated.View */}
+              <Animated.Text
+                style={[
+                  styles.landscapeExpr,
+                  {
+                    fontSize: exprFontSize,
+                    color: opColor,
+                  },
+                ]}>
+                {/* color → useNativeDriver: false → Animated.Text */}
+                {expression.slice(-1)}
+              </Animated.Text>
+            </Animated.View>
+          </ScrollView>
+        ) : (
+          <TextInput
+            {...inputProps}
+            style={[
+              styles.landscapeExpr,
+              {
+                fontSize: exprFontSize,
+                color: result !== '' ? theme.resultText : theme.expressionText,
+              },
+            ]}
+            textAlign="right"
+          />
+        )}
 
-        {/* Error message */}
-        <Animated.Text
-          style={[
-            styles.errorText,
-            { color: '#ff6b6b', opacity: errorOpacity },
-          ]}
-        >
-          {editError}
-        </Animated.Text>
+        {editError !== '' && (
+          <Animated.Text
+            style={[styles.subText, { color: '#ff6b6b', opacity: errorOpacity }]}
+          >
+            {editError}
+          </Animated.Text>
+        )}
 
       </View>
     );
@@ -185,52 +362,8 @@ export default function Display({
       styles.portraitContainer,
       { height: isTablet ? UI_CHROME.displayTablet : UI_CHROME.displayPortrait },
     ]}>
-
-      {/* Expression input — fills available space */}
-      <TextInput
-        {...inputProps}
-        style={[
-          styles.expression,
-          {
-            fontSize: exprFontSize,
-            color: theme.expressionText,
-            // Tint cursor to brand color
-            ...(Platform.OS === 'ios'
-              ? { tintColor: theme.btnOperator }
-              : { cursorColor: theme.btnOperator }),
-          },
-        ]}
-        textAlign="right"
-      />
-
-      {/* Result or error — below expression */}
-      {editError !== '' ? (
-        <Animated.Text
-          style={[
-            styles.errorText,
-            { color: '#ff6b6b', opacity: errorOpacity },
-          ]}
-        >
-          ⚠ {editError}
-        </Animated.Text>
-      ) : (
-        <Animated.Text
-          style={[
-            styles.result,
-            {
-              fontSize: typo.resultSize,
-              color: theme.resultText,
-              opacity: resultOpacity,
-              transform: [{ scale: resultScale }],
-            },
-          ]}
-          numberOfLines={1}
-          adjustsFontSizeToFit
-        >
-          = {result}
-        </Animated.Text>
-      )}
-
+      {ExpressionField}
+      {SubDisplay}
     </View>
   );
 }
@@ -247,16 +380,34 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     letterSpacing: 0.5,
     paddingVertical: SPACE.xs,
-    // Remove default TextInput border/background
     backgroundColor: 'transparent',
     borderWidth: 0,
+    textAlign: 'right',
+
+    lineHeight: rf(48),
+    minHeight: rf(48),
+  },
+  exprScroll: {
+    width: '100%',
+  },
+  exprScrollContent: {
+    flexGrow: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  exprScrollContentRight: {
+    flexGrow: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
   },
   result: {
     fontWeight: '300',
     marginTop: SPACE.xs,
     textAlign: 'right',
   },
-  errorText: {
+  subText: {
     fontSize: rf(13),
     fontWeight: '500',
     textAlign: 'right',
@@ -287,5 +438,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderWidth: 0,
     paddingVertical: SPACE.xs,
+    textAlign: 'right',
+
+    lineHeight: rf(48),
+    minHeight: rf(48),
   },
 });
