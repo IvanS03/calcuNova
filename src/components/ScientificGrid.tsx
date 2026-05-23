@@ -11,15 +11,15 @@ import { useTheme } from '../theme/ThemeContext';
 
 // ── Pages ────────────────────────────────────────────
 const PAGE_A: ButtonValue[][] = [
-  ['sin(', 'cos(', 'tan(', 'π'],
-  ['log(', 'ln(', '√(', 'e'],
-  ['x²', '^', '(', ')'],
+  ['sin(', 'cos(', 'tan(', 'π', 'e',],  // 5 + swap = 6
+  ['log(', 'ln(', '√(', 'x²', 'x³', 'log2('],  // 6
+  ['asin(', 'acos(', 'atan(', '^', '10^(', 'rand'],  // 6
 ];
 
 const PAGE_B: ButtonValue[][] = [
-  ['asin(', 'acos(', 'atan(', 'π'],
-  ['sinh(', 'cosh(', 'tanh(', 'e'],
-  ['x³', '1/x', 'cbrt(', 'abs('],
+  ['sinh(', 'cosh(', 'tanh(', 'abs(', 'cbrt(',],  // 5 + swap = 6
+  ['e^(', '1/x', 'n!', 'mod', 'floor(', 'trunc('],  // 6
+  ['ceil(', 'round(', 'nPr(', 'nCr(', '10^(', 'sign('],  // 6
 ];
 
 type SciType =
@@ -30,10 +30,14 @@ function getSciType(value: ButtonValue): SciType {
   if (['sin(', 'cos(', 'tan('].includes(value)) return 'trig';
   if (['asin(', 'acos(', 'atan('].includes(value)) return 'inv';
   if (['sinh(', 'cosh(', 'tanh('].includes(value)) return 'hyp';
-  if (['log(', 'ln(', '√(', 'cbrt(', 'abs('].includes(value)) return 'log';
+  if (['log(', 'ln(', '√(', 'cbrt(', 'abs(',
+    'floor(', 'ceil(', 'round(', 'trunc(',
+    'log2(', 'sign('].includes(value)) return 'log';
   if (['π', 'e'].includes(value)) return 'const';
-  if (['x²', 'x³', '^', '1/x', '10^(', 'e^('].includes(value)) return 'power';
-  if (['(', ')'].includes(value)) return 'paren';
+  if (['x²', 'x³', '^', '1/x',
+    '10^(', 'e^(', 'n!',
+    'nPr(', 'nCr(', 'mod',
+    'rand'].includes(value)) return 'power';
   return 'action';
 }
 
@@ -152,11 +156,7 @@ export default function ScientificGrid({
       },
     ]}>
       {rows.map((row, rowIdx) => (
-        <View
-          key={rowIdx}
-          style={[styles.row, { marginBottom: gap }]}
-        >
-          {/* Page buttons */}
+        <View key={rowIdx} style={[styles.row, { marginBottom: gap }]}>
           {row.map(value => (
             <SciButton
               key={value}
@@ -164,42 +164,17 @@ export default function ScientificGrid({
               type={getSciType(value)}
               onPress={onPress}
               btnHeight={btnHeight}
-              btnWidth={btnWidth}
               fontSize={fontSize}
               gap={gap}
               theme={theme}
             />
           ))}
 
-          {/* Fixed column: swap / ⌫ / AC per row */}
+          {/* Swap button only on first row — no empty placeholder needed */}
           {rowIdx === 0 && (
             <SwapButton
               pageB={pageB}
               onToggle={() => setPageB(v => !v)}
-              btnHeight={btnHeight}
-              btnWidth={btnWidth}
-              fontSize={fontSize}
-              gap={gap}
-              theme={theme}
-            />
-          )}
-          {rowIdx === 1 && (
-            <SciButton
-              value="⌫"
-              type="action"
-              onPress={onPress}
-              btnHeight={btnHeight}
-              btnWidth={btnWidth}
-              fontSize={fontSize + 2}
-              gap={gap}
-              theme={theme}
-            />
-          )}
-          {rowIdx === 2 && (
-            <SciButton
-              value="AC"
-              type="action"
-              onPress={onPress}
               btnHeight={btnHeight}
               btnWidth={btnWidth}
               fontSize={fontSize}

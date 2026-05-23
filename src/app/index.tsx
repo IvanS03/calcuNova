@@ -1,5 +1,5 @@
 import { History } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -14,6 +14,7 @@ import HistoryPanel from '../components/HistoryPanel';
 import ModeBar, { AppMode } from '../components/ModeBar';
 import ScientificGrid from '../components/ScientificGrid';
 import ThemeButton from '../components/ThemeButton';
+import Toast from '../components/Toast';
 import UnitConverter from '../components/UnitConverter';
 import { CONTENT_PADDING, SPACE, UI_CHROME } from '../constants/layout';
 import { useAnimatedMode } from '../hooks/useAnimatedMode';
@@ -51,6 +52,10 @@ export default function Index() {
 
   const [appMode, setAppMode] = useState<AppMode>('basic');
   const [historyOpen, setHistoryOpen] = useState(false);
+  // Toast state
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isTablet = width >= 768;
   const isLandscape = width > height;
@@ -88,6 +93,21 @@ export default function Index() {
       }, 0);
     }
   }, [handlePress, addEntry, lastEvaluatedExpr, lastEvaluatedResult]);
+
+  useEffect(() => {
+    if (editError) showToast(editError);
+    if (showIncompleteWarning) showToast('Operación incompleta');
+  }, [editError, showIncompleteWarning]);
+
+  const showToast = useCallback((msg: string) => {
+    if (!msg) return;
+    setToastMessage(msg);
+    setToastVisible(true);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => {
+      setToastVisible(false);
+    }, 2200);
+  }, []);
 
   // ── Tap history entry → load result ─────────────
   const handleSelectEntry = useCallback((entry: HistoryEntry) => {
@@ -188,6 +208,7 @@ export default function Index() {
         },
       ]}>
 
+
         {/* ── LEFT: buttons ─────────────────────── */}
         <View style={styles.leftCol}>
           {CalcButtons}
@@ -233,6 +254,8 @@ export default function Index() {
           onSelect={handleSelectEntry}
           onClear={clearHistory}
         />
+
+        <Toast message={toastMessage} visible={toastVisible} />
 
       </View>
     );
@@ -307,8 +330,11 @@ export default function Index() {
         onClear={clearHistory}
       />
 
+      <Toast message={toastMessage} visible={toastVisible} />
+
     </View>
   );
+
 }
 
 const styles = StyleSheet.create({

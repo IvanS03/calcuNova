@@ -5,7 +5,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   View
 } from 'react-native';
@@ -156,7 +155,11 @@ export default function Display({
   // When warning: nested <Text> for pixel-perfect inline color on last char
   // When normal: TextInput with cursor support
   const ExpressionField = (
-    <View style={styles.exprWrapper}>
+    <View style={[
+      styles.exprWrapper,
+      // Subtle red left border when warning active
+      showIncompleteWarning && styles.exprWrapperError,
+    ]}>
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -164,38 +167,20 @@ export default function Display({
         style={styles.exprScroll}
         contentContainerStyle={styles.exprScrollContent}
       >
-        {showIncompleteWarning && expression.length > 0 ? (
-          // Nested Text: same layout as TextInput, last char in red
-          <Text
-            style={[
-              styles.expression,
-              { fontSize: exprFontSize },
-            ]}
-            numberOfLines={1}
-          >
-            <Text style={{ color: theme.expressionText }}>
-              {expression.slice(0, -1)}
-            </Text>
-            <Text style={{ color: '#ff453a' }}>
-              {expression.slice(-1)}
-            </Text>
-          </Text>
-        ) : (
-          <TextInput
-            {...inputProps}
-            style={[
-              styles.expression,
-              {
-                fontSize: exprFontSize,
-                color: theme.expressionText,
-                ...(Platform.OS === 'ios'
-                  ? { tintColor: theme.btnOperator }
-                  : { cursorColor: theme.btnOperator }),
-              },
-            ]}
-            textAlign="right"
-          />
-        )}
+        <TextInput
+          {...inputProps}
+          style={[
+            styles.expression,
+            {
+              fontSize: exprFontSize,
+              color: theme.expressionText,
+              ...(Platform.OS === 'ios'
+                ? { tintColor: theme.btnOperator }
+                : { cursorColor: theme.btnOperator }),
+            },
+          ]}
+          textAlign="right"
+        />
       </ScrollView>
     </View>
   );
@@ -239,9 +224,7 @@ export default function Display({
   // LANDSCAPE
   // ════════════════════════════════════════════════
   if (isAnyLandscape) {
-
     return (
-
       <View style={styles.landscapeContainer}>
 
         <Animated.Text
@@ -260,59 +243,25 @@ export default function Display({
           {result !== '' ? result : ' '}
         </Animated.Text>
 
-        <View
-          style={[
-            styles.landscapeSeparator,
-            { backgroundColor: theme.divider },
-          ]}
-        />
+        <View style={[styles.landscapeSeparator, { backgroundColor: theme.divider }]} />
 
-        <View style={styles.exprWrapper}>
-          {showIncompleteWarning && expression.length > 0 ? (
-            <Text
-              style={[
-                styles.landscapeExpr,
-                { fontSize: exprFontSize },
-              ]}
-              numberOfLines={1}
-            >
-              <Text style={{ color: result !== '' ? theme.resultText : theme.expressionText }}>
-                {expression.slice(0, -1)}
-              </Text>
-              <Text style={{ color: '#ff453a' }}>
-                {expression.slice(-1)}
-              </Text>
-            </Text>
-          ) : (
-            <TextInput
-              {...inputProps}
-              style={[
-                styles.landscapeExpr,
-                {
-                  fontSize: exprFontSize,
-                  color: result !== '' ? theme.resultText : theme.expressionText,
-                },
-              ]}
-              textAlign="right"
-            />
-          )}
-        </View>
-
-        {editError !== '' && (
-
-          <Animated.Text
+        {/* Always TextInput — cursor stays active even on error */}
+        <View style={[
+          styles.exprWrapper,
+          showIncompleteWarning && styles.exprWrapperError,
+        ]}>
+          <TextInput
+            {...inputProps}
             style={[
-              styles.subText,
+              styles.landscapeExpr,
               {
-                color: '#ff6b6b',
-                opacity: errorOpacity,
+                fontSize: exprFontSize,
+                color: result !== '' ? theme.resultText : theme.expressionText,
               },
             ]}
-          >
-            {editError}
-          </Animated.Text>
-
-        )}
+            textAlign="right"
+          />
+        </View>
 
       </View>
     );
@@ -415,5 +364,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     paddingVertical: SPACE.xs,
     textAlign: 'right',
+  },
+  exprWrapperError: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#ff453a55',
+    borderRadius: 2,
   },
 });

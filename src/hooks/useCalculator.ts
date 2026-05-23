@@ -7,26 +7,41 @@ export type ButtonValue =
   | '+' | '-' | '×' | '÷' | '.' | '='
   | 'AC' | '+/-' | '%' | '⌫'
   | '(' | ')' | '()'
+  // Scientific page A
   | 'sin(' | 'cos(' | 'tan('
   | 'log(' | 'ln(' | '√('
-  | 'x²' | '^' | 'π' | 'e'
+  | 'x²' | 'x³' | '^'
+  | 'π' | 'e'
   | 'asin(' | 'acos(' | 'atan('
+  | '10^('
+  // Scientific page B
   | 'sinh(' | 'cosh(' | 'tanh('
-  | 'cbrt(' | 'abs(' | 'x³'
-  | '1/x' | '10^(' | 'e^(';
+  | 'abs(' | 'cbrt('
+  | 'e^(' | '1/x'
+  | 'n!' | 'mod'
+  | 'floor(' | 'ceil(' | 'round('
+  | 'nPr(' | 'nCr('
+  | 'log2(' | 'rand' | 'trunc(' | 'sign(';
 
 const OPERATORS = ['+', '-', '×', '÷', '^'];
 const MULTI_TOKENS = [
   'sin(', 'cos(', 'tan(', 'log(', 'ln(', '√(',
-  'asin(', 'acos(', 'atan(', 'sinh(', 'cosh(', 'tanh(',
+  'asin(', 'acos(', 'atan(',
+  'sinh(', 'cosh(', 'tanh(',
   'cbrt(', 'abs(', '10^(', 'e^(',
+  'floor(', 'ceil(', 'round(',
+  'nPr(', 'nCr(', 'log2(', 'trunc(', 'sign(',
 ];
+
 const APPEND_AS_IS: ButtonValue[] = [
   'sin(', 'cos(', 'tan(', 'log(', 'ln(', '√(',
   'π', 'e', '(', ')',
   'asin(', 'acos(', 'atan(',
   'sinh(', 'cosh(', 'tanh(',
   'cbrt(', 'abs(', '10^(', 'e^(',
+  'floor(', 'ceil(', 'round(',
+  'nPr(', 'nCr(',
+  'mod', 'log2(', 'trunc(', 'sign(',           // appended as operator
 ];
 
 // ── Cursor-aware helpers ─────────────────────────────
@@ -257,6 +272,21 @@ export function useCalculator() {
       if (lastSeg.includes('.')) return;
       const { newExpr, newPos } = insertAt(expression, '.', pos, false);
       apply(newExpr, newPos);
+      return;
+    }
+
+    if (value === 'rand') {
+      const randVal = String(parseFloat(Math.random().toFixed(10)));
+      apply(randVal, randVal.length);
+      return;
+    }
+
+    // ── Factorial ────────────────────────────────────
+    if (value === 'n!') {
+      setJustEvaluated(false);
+      if (expression === '0') return;
+      const next = `factorial(${expression})`;
+      apply(next, next.length);
       return;
     }
 

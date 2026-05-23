@@ -26,6 +26,15 @@ const MATH_HELPERS = `
   const __recip = x => 1 / x;
   const __pow10 = x => Math.pow(10, x);
   const __expe  = x => Math.exp(x);
+  const __floor    = x => Math.floor(x);
+  const __ceil     = x => Math.ceil(x);
+  const __round    = x => Math.round(x);
+  const __fact     = n => { if(n<0||!Number.isInteger(n)) return NaN; let r=1; for(let i=2;i<=n;i++) r*=i; return r; };
+  const __nPr      = (n,r) => __fact(n) / __fact(n-r);
+  const __nCr      = (n,r) => __fact(n) / (__fact(r) * __fact(n-r));
+  const __log2  = x => Math.log2(x);
+  const __trunc = x => Math.trunc(x);
+  const __sign  = x => Math.sign(x);
 `;
 
 /**
@@ -144,7 +153,18 @@ function sanitize(expr: string): string {
     .replace(/1\/x/g, '__recip')
     .replace(/10\^\(/g, '__pow10(')
     .replace(/e\^\(/g, '__expe(')
-    .replace(/\^/g, '**');
+    .replace(/\^/g, '**')
+    .replace(/floor\(/g, '__floor(')
+    .replace(/ceil\(/g, '__ceil(')
+    .replace(/round\(/g, '__round(')
+    .replace(/factorial\(/g, '__fact(')
+    .replace(/nPr\(/g, '__nPr(')
+    .replace(/nCr\(/g, '__nCr(')
+    .replace(/\bmod\b/g, '%')
+    .replace(/log2\(/g, '__log2(')
+    .replace(/trunc\(/g, '__trunc(')
+    .replace(/sign\(/g, '__sign(')
+    ;       // JS % is modulo for integers
 }
 
 function isBalanced(expr: string): boolean {
