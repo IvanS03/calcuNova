@@ -44,6 +44,7 @@ export default function Index() {
     onDirectEdit,
     editError,
     showIncompleteWarning,
+    setExpressionDirect,
     lastEvaluatedExpr,
     lastEvaluatedResult,
   } = useCalculator();
@@ -111,18 +112,10 @@ export default function Index() {
 
   // ── Tap history entry → load result ─────────────
   const handleSelectEntry = useCallback((entry: HistoryEntry) => {
-    handlePress('AC');
-    entry.result.split('').forEach(char => {
-      if (char === '-') {
-        handlePress('+/-');
-      } else if (char === '.') {
-        handlePress('.');
-      } else if (/[0-9]/.test(char)) {
-        handlePress(char as any);
-      }
-    });
+    // Inject result directly — no simulated button presses
+    setExpressionDirect(entry.expression);
     setHistoryOpen(false);
-  }, [handlePress]);
+  }, [setExpressionDirect]);
 
   // ── History button (only in calculator modes) ───
   const HistoryButton = appMode !== 'converter' ? (

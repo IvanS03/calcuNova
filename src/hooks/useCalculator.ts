@@ -178,6 +178,12 @@ export function useCalculator() {
     setSelection(undefined);
   }, [apply, showError]);
 
+  // Inject a value directly — used by history selection
+  const setExpressionDirect = useCallback((value: string) => {
+    setJustEvaluated(false);
+    apply(value, value.length);
+  }, [apply]);
+
   const handlePress = useCallback((value: ButtonValue) => {
     if (value !== '=') setShowIncompleteWarning(false);
     const pos = cursorPosRef.current;
@@ -326,6 +332,7 @@ export function useCalculator() {
     onSelectionChange,
     onDirectEdit,
     showIncompleteWarning,
+    setExpressionDirect,
     editError,
     lastEvaluatedExpr,
     lastEvaluatedResult,
