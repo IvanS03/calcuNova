@@ -231,17 +231,17 @@ export default function Display({
 
         <View style={[styles.landscapeSeparator, { backgroundColor: theme.divider }]} />
 
-        {/* Expression — multiline, scrollable */}
+        {/* Expression — same fixed height as portrait (4 lines), top-anchored */}
         <View style={[
           styles.exprOuter,
           showIncompleteWarning && styles.exprOuterError,
-          { flex: 1 },   // fill remaining space in landscape
+          { height: exprAreaHeight },   // ← same height calc as portrait
         ]}>
           <ScrollView
             ref={exprScrollRef}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.exprScrollContent}
+            contentContainerStyle={styles.exprScrollContentTop}  // ← top-anchored
           >
             <TextInput
               {...inputProps}
@@ -255,7 +255,7 @@ export default function Display({
                     : theme.expressionText,
                 },
               ]}
-              textAlignVertical="bottom"
+              textAlignVertical="top"   // ← start from top
               textAlign="right"
             />
           </ScrollView>
@@ -322,6 +322,11 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     textAlignVertical: 'bottom',
     paddingVertical: SPACE.xs,
+  },
+  // Top-anchored scroll content — text grows downward from top
+  exprScrollContentTop: {
+    flexGrow: 1,
+    justifyContent: 'flex-start',   // ← top instead of flex-end
   },
 
   // ── Sub-display ───────────────────────────────────
