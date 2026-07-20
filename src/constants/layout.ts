@@ -1,7 +1,4 @@
-import { Dimensions } from 'react-native';
 import { hp, isTabletDevice, rf, rs, rsp } from '../utils/responsive';
-
-const { height: H } = Dimensions.get('window');
 
 export const BREAKPOINTS = {
     tablet: 768,
@@ -34,25 +31,37 @@ export const CONTENT_PADDING = {
 export const TYPOGRAPHY = {
     phone: {
         expressionLarge: rf(42),
-        expressionMedium: rf(28),
+        expressionMedium: rf(32),
+        expressionSmall: rf(24),   // ← nuevo
+        thresholdMedium: 18,       // chars antes de reducir a medium
+        thresholdSmall: 36,       // chars antes de reducir a small
         resultSize: rf(22),
-        displayThreshold: 14,
+        displayThreshold: 14,       // kept for landscape
     },
     tablet: {
         expressionLarge: rf(56),
-        expressionMedium: rf(38),
+        expressionMedium: rf(42),
+        expressionSmall: rf(32),
+        thresholdMedium: 22,
+        thresholdSmall: 44,
         resultSize: rf(28),
         displayThreshold: 18,
     },
     landscape: {
         expressionLarge: rf(26),
         expressionMedium: rf(20),
+        expressionSmall: rf(16),
+        thresholdMedium: 16,
+        thresholdSmall: 30,
         resultSize: rf(38),
         displayThreshold: 14,
     },
     tabletLandscape: {
         expressionLarge: rf(32),
         expressionMedium: rf(24),
+        expressionSmall: rf(18),
+        thresholdMedium: 20,
+        thresholdSmall: 38,
         resultSize: rf(48),
         displayThreshold: 16,
     },
@@ -61,7 +70,7 @@ export const TYPOGRAPHY = {
 // UI chrome — percentage of screen height so it scales with any DPI
 export const UI_CHROME = {
     topBar: hp(6),    // 6% of screen height
-    displayPortrait: hp(isTabletDevice ? 22 : 20),
+    displayPortrait: hp(isTabletDevice ? 22 : 28),
     displayTablet: hp(22),
     divider: rsp(17),
     backspaceRow: hp(5),    // 5% of screen height

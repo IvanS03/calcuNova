@@ -120,6 +120,33 @@ function validateDirectEdit(text: string): string | null {
   return null;
 }
 
+// ── Validation helpers ───────────────────────────
+
+const MAX_DIGITS_PER_NUMBER = 16;
+const MAX_OPERATORS = 50;
+const OPERATOR_CHARS = new Set(['+', '-', '×', '÷', '%']);
+
+// Count digits in the current number at cursor position
+function digitsInCurrentNumber(expr: string, pos: number): number {
+  let count = 0;
+  let i = pos - 1;
+  while (i >= 0) {
+    const ch = expr[i];
+    if (/[0-9]/.test(ch)) { count++; i--; }
+    else break;
+  }
+  return count;
+}
+
+// Count total operators in expression
+function countOperators(expr: string): number {
+  let count = 0;
+  for (const ch of expr) {
+    if (OPERATOR_CHARS.has(ch)) count++;
+  }
+  return count;
+}
+
 // ── Hook ─────────────────────────────────────────────
 
 export function useCalculator() {
@@ -240,9 +267,15 @@ export function useCalculator() {
 
     // ── Percentage ────────────────────────────────
     if (value === '%') {
+      setJustEvaluated(false);
       if (expression === '0') return;
       const lastChar = expression[pos - 1];
       if (!/[0-9)]/.test(lastChar)) return;
+      // % counts as operator
+      if (countOperators(expression) >= MAX_OPERATORS) {
+        showError('Máximo 50 operadores por expresión');
+        return;
+      }
       const { newExpr, newPos } = insertAt(expression, '%', pos);
       apply(newExpr, newPos);
       return;
@@ -306,6 +339,14 @@ export function useCalculator() {
 
     // ── Operators ─────────────────────────────────
     if (OPERATORS.includes(value)) {
+      setJustEvaluated(false);
+
+      // Validate: max 50 operators
+      if (countOperators(expression) >= MAX_OPERATORS) {
+        showError('Máximo 50 operadores por expresión');
+        return;
+      }
+
       const { newExpr, newPos } = insertOperator(expression, value, pos);
       apply(newExpr, newPos);
       return;
@@ -319,6 +360,13 @@ export function useCalculator() {
     }
 
     // ── Digit ────────────────────────────────────
+    // Validate: max 16 digits per number
+    const currentDigits = digitsInCurrentNumber(expression, pos);
+    if (currentDigits >= MAX_DIGITS_PER_NUMBER) {
+      showError('Máximo 16 dígitos por número');
+      return;
+    }
+
     const { newExpr, newPos } = insertAt(expression, value, pos);
     apply(newExpr, newPos);
 
