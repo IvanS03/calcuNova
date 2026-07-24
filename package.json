@@ -1,20 +1,11 @@
 {
   "expo": {
-    "name": "calculator",
-    "slug": "calculator",
-    "version": "1.0.0",
-    "plugins": [
-      [
-        "react-native-google-mobile-ads",
-        {
-          "androidAppId": "ca-app-pub-3940256099942544/9214589741",
-          "iosAppId": "ca-app-pub-3940256099942544/9214589741"
-        }
-      ]
-    ]
+    "name": "CalcuNova",
+    "slug": "CalcuNova",
+    "version": "1.1.4"
   },
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.1.4",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
