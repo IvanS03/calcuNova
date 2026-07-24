@@ -6,70 +6,96 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import { SPACE, TYPOGRAPHY, UI_CHROME } from '../constants/layout';
 import { useTheme } from '../theme/ThemeContext';
+import {
+  formatExpressionForDisplay,
+  formattedPosToRaw,
+  rawPosToFormatted,
+} from '../utils/expressionFormatter';
 import { rf } from '../utils/responsive';
 
 interface DisplayProps {
-  expression: string;
-  result: string;
-  isTablet: boolean;
-  isLandscape?: boolean;
-  isTabletLandscape?: boolean;
-  selection?: { start: number; end: number };
-  onSelectionChange?: (pos: number) => void;
-  onDirectEdit?: (text: string) => void;
-  editError?: string;
+  expression:             string;
+  result:                 string;
+  isTablet:               boolean;
+  isLandscape?:           boolean;
+  isTabletLandscape?:     boolean;
+  selection?:             { start: number; end: number };
+  onSelectionChange?:     (pos: number) => void;
+  onDirectEdit?:          (text: string) => void;
+  editError?:             string;
   showIncompleteWarning?: boolean;
 }
 
-// Number of visible lines in the expression area
+// Visible lines before scroll kicks in
 const VISIBLE_LINES = 4;
+// Average character width factor for fontWeight 300, letterSpacing 0.3
+const CHAR_WIDTH_FACTOR = 0.58;
 
 export default function Display({
   expression,
   result,
   isTablet,
-  isLandscape = false,
+  isLandscape       = false,
   isTabletLandscape = false,
   selection,
   onSelectionChange,
   onDirectEdit,
-  editError = '',
+  editError             = '',
   showIncompleteWarning = false,
 }: DisplayProps) {
-  const { theme } = useTheme();
-  const isAnyLandscape = isLandscape || isTabletLandscape;
+  const { theme }        = useTheme();
+  const { width: screenW } = useWindowDimensions();
+  const isAnyLandscape   = isLandscape || isTabletLandscape;
 
   const typo = isTabletLandscape
     ? TYPOGRAPHY.tabletLandscape
     : isLandscape
-      ? TYPOGRAPHY.landscape
-      : isTablet
-        ? TYPOGRAPHY.tablet
-        : TYPOGRAPHY.phone;
+    ? TYPOGRAPHY.landscape
+    : isTablet
+    ? TYPOGRAPHY.tablet
+    : TYPOGRAPHY.phone;
 
   // ── 3-stage font size ───────────────────────────
   const exprFontSize =
-    expression.length >= typo.thresholdSmall
-      ? typo.expressionSmall
-      : expression.length >= typo.thresholdMedium
-        ? typo.expressionMedium
-        : typo.expressionLarge;
+    expression.length >= (typo as any).thresholdSmall
+      ? (typo as any).expressionSmall
+      : expression.length >= (typo as any).thresholdMedium
+      ? typo.expressionMedium
+      : typo.expressionLarge;
 
-  // Height of one line = fontSize × lineHeight factor
-  const lineHeight = exprFontSize * 1.35;
-  // Fixed height: always show VISIBLE_LINES lines
+  const lineHeight     = exprFontSize * 1.35;
   const exprAreaHeight = lineHeight * VISIBLE_LINES + SPACE.sm * 2;
+
+  // ── Compute chars per line ───────────────────────
+  // Available width = screen minus horizontal padding on both sides
+  const horizontalPadding = SPACE.md * 2;
+  const availableWidth    = screenW - horizontalPadding;
+  const charsPerLine      = Math.floor(
+    availableWidth / (exprFontSize * CHAR_WIDTH_FACTOR)
+  );
+
+  // ── Format expression with term-aware line breaks ─
+  const displayExpression = formatExpressionForDisplay(expression, charsPerLine);
+
+  // Convert raw selection → formatted selection
+  const displaySelection = selection
+    ? {
+        start: rawPosToFormatted(selection.start, displayExpression),
+        end:   rawPosToFormatted(selection.end,   displayExpression),
+      }
+    : undefined;
 
   // ── Animated values ──────────────────────────────
   const resultOpacity = useRef(new Animated.Value(0)).current;
-  const resultScale = useRef(new Animated.Value(0.92)).current;
-  const errorOpacity = useRef(new Animated.Value(0)).current;
-  const mounted = useRef(false);
-  const animRef = useRef<Animated.CompositeAnimation | null>(null);
+  const resultScale   = useRef(new Animated.Value(0.92)).current;
+  const errorOpacity  = useRef(new Animated.Value(0)).current;
+  const mounted       = useRef(false);
+  const animRef       = useRef<Animated.CompositeAnimation | null>(null);
   const exprScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -80,28 +106,28 @@ export default function Display({
     };
   }, []);
 
-  // Auto-scroll to bottom so latest text is always visible
+  // Scroll to bottom so latest input is always visible
   useEffect(() => {
     requestAnimationFrame(() => {
-      exprScrollRef.current?.scrollToEnd({ animated: true });
+      exprScrollRef.current?.scrollToEnd({ animated: false });
     });
-  }, [expression]);
+  }, [displayExpression]);
 
   const animateResult = useCallback((showing: boolean) => {
     if (!mounted.current) return;
     animRef.current?.stop();
     animRef.current = Animated.parallel([
       Animated.timing(resultOpacity, {
-        toValue: showing ? 1 : 0,
-        duration: 200,
-        easing: Easing.out(Easing.ease),
+        toValue:         showing ? 1 : 0,
+        duration:        200,
+        easing:          Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
       Animated.spring(resultScale, {
-        toValue: showing ? 1 : 0.92,
+        toValue:         showing ? 1 : 0.92,
         useNativeDriver: true,
-        speed: 20,
-        bounciness: 4,
+        speed:           20,
+        bounciness:       4,
       }),
     ]);
     animRef.current.start(({ finished }) => {
@@ -118,37 +144,49 @@ export default function Display({
   useEffect(() => {
     if (!mounted.current) return;
     Animated.timing(errorOpacity, {
-      toValue: editError !== '' ? 1 : 0,
-      duration: 150,
+      toValue:         editError !== '' ? 1 : 0,
+      duration:        150,
       useNativeDriver: true,
     }).start();
   }, [editError !== '']);
 
-  // ── Shared TextInput props ───────────────────────
+  // ── TextInput props ──────────────────────────────
   const inputProps = {
-    value: expression,
-    selection: selection,
+    // Display the formatted expression (with \n at term breaks)
+    value:                displayExpression,
+    selection:            displaySelection,
+
     onSelectionChange: onSelectionChange
-      ? ({ nativeEvent: { selection: sel } }: any) =>
-        onSelectionChange(sel.start)
+      ? ({ nativeEvent: { selection: sel } }: any) => {
+          // Convert formatted pos → raw pos before reporting up
+          const rawPos = formattedPosToRaw(sel.start, displayExpression);
+          onSelectionChange(rawPos);
+        }
       : undefined,
-    onChangeText: onDirectEdit,
+
+    onChangeText: onDirectEdit
+      ? (text: string) => {
+          // Strip inserted \n before sending to calculator logic
+          onDirectEdit(text.replace(/\n/g, ''));
+        }
+      : undefined,
+
     showSoftInputOnFocus: false,
-    keyboardType: 'visible-password' as const,
-    contextMenuHidden: true,
-    caretHidden: false,
-    editable: true,
-    multiline: true,       // ← multiline enabled
-    autoCorrect: false,
-    autoCapitalize: 'none' as const,
-    autoComplete: 'off' as const,
-    spellCheck: false,
+    keyboardType:         'visible-password' as const,
+    contextMenuHidden:    true,
+    caretHidden:          false,
+    editable:             true,
+    multiline:            true,
+    scrollEnabled:        false,  // outer ScrollView handles scrolling
+    autoCorrect:          false,
+    autoCapitalize:       'none' as const,
+    autoComplete:         'off' as const,
+    spellCheck:           false,
     importantForAutofill: 'no' as const,
-    scrollEnabled: false,      // ScrollView handles scrolling
   };
 
-  // ── Expression area — shared between portrait/landscape ──
-  const ExpressionArea = (
+  // ── Expression area (shared portrait + landscape) ─
+  const ExpressionArea = (isLandscape_: boolean) => (
     <View style={[
       styles.exprOuter,
       showIncompleteWarning && styles.exprOuterError,
@@ -158,29 +196,35 @@ export default function Display({
         ref={exprScrollRef}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={styles.exprScrollContent}
+        // Portrait: content anchored to bottom (text grows upward)
+        // Landscape: content anchored to top (text grows downward)
+        contentContainerStyle={
+          isLandscape_ ? styles.exprContentTop : styles.exprContentBottom
+        }
       >
         <TextInput
           {...inputProps}
           style={[
             styles.expression,
             {
-              fontSize: exprFontSize,
+              fontSize:   exprFontSize,
               lineHeight: lineHeight,
-              color: theme.expressionText,
+              color: (isLandscape_ && result !== '')
+                ? theme.resultText
+                : theme.expressionText,
               ...(Platform.OS === 'ios'
                 ? { tintColor: theme.btnOperator }
                 : { cursorColor: theme.btnOperator }),
             },
           ]}
-          textAlignVertical="bottom"
+          textAlignVertical={isLandscape_ ? 'top' : 'bottom'}
           textAlign="right"
         />
       </ScrollView>
     </View>
   );
 
-  // ── Sub-display (result / error) ─────────────────
+  // ── Sub-display ───────────────────────────────────
   const SubDisplay = editError !== '' ? (
     <Animated.Text
       style={[styles.subText, { color: '#ff6b6b', opacity: errorOpacity }]}
@@ -192,9 +236,9 @@ export default function Display({
       style={[
         styles.result,
         {
-          fontSize: typo.resultSize,
-          color: theme.resultText,
-          opacity: resultOpacity,
+          fontSize:  typo.resultSize,
+          color:     theme.resultText,
+          opacity:   resultOpacity,
           transform: [{ scale: resultScale }],
         },
       ]}
@@ -212,14 +256,13 @@ export default function Display({
     return (
       <View style={styles.landscapeContainer}>
 
-        {/* Result — large, top */}
         <Animated.Text
           style={[
             styles.landscapeResult,
             {
               fontSize: typo.resultSize,
-              color: theme.btnOperator,
-              opacity: resultOpacity,
+              color:    theme.btnOperator,
+              opacity:  resultOpacity,
             },
           ]}
           numberOfLines={1}
@@ -231,35 +274,8 @@ export default function Display({
 
         <View style={[styles.landscapeSeparator, { backgroundColor: theme.divider }]} />
 
-        {/* Expression — same fixed height as portrait (4 lines), top-anchored */}
-        <View style={[
-          styles.exprOuter,
-          showIncompleteWarning && styles.exprOuterError,
-          { height: exprAreaHeight },   // ← same height calc as portrait
-        ]}>
-          <ScrollView
-            ref={exprScrollRef}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.exprScrollContentTop}  // ← top-anchored
-          >
-            <TextInput
-              {...inputProps}
-              style={[
-                styles.landscapeExpr,
-                {
-                  fontSize: exprFontSize,
-                  lineHeight: lineHeight,
-                  color: result !== ''
-                    ? theme.resultText
-                    : theme.expressionText,
-                },
-              ]}
-              textAlignVertical="top"   // ← start from top
-              textAlign="right"
-            />
-          </ScrollView>
-        </View>
+        {/* Same expression area as portrait, top-anchored */}
+        {ExpressionArea(true)}
 
         {editError !== '' && (
           <Animated.Text
@@ -280,13 +296,12 @@ export default function Display({
     <View style={[
       styles.portraitContainer,
       {
-        // Height: expression area + result line + padding
         height: isTablet
           ? UI_CHROME.displayTablet
           : UI_CHROME.displayPortrait,
       },
     ]}>
-      {ExpressionArea}
+      {ExpressionArea(false)}
       {SubDisplay}
     </View>
   );
@@ -296,76 +311,71 @@ const styles = StyleSheet.create({
   // ── Portrait ─────────────────────────────────────
   portraitContainer: {
     paddingHorizontal: SPACE.md,
-    paddingVertical: SPACE.sm,
-    justifyContent: 'flex-end',
-    width: '100%',
+    paddingVertical:   SPACE.sm,
+    justifyContent:    'flex-end',
+    width:             '100%',
   },
 
   // ── Expression area ──────────────────────────────
   exprOuter: {
-    width: '100%',
+    width:    '100%',
     overflow: 'hidden',
   },
   exprOuterError: {
-    borderLeftWidth: 2,
+    borderLeftWidth:  2,
     borderLeftColor: '#ff453a55',
-    borderRadius: 2,
+    borderRadius:     2,
   },
-  exprScrollContent: {
-    flexGrow: 1,
+
+  // Portrait: content sticks to bottom (new lines push up)
+  exprContentBottom: {
+    flexGrow:       1,
     justifyContent: 'flex-end',
   },
-  expression: {
-    fontWeight: '300',
-    letterSpacing: 0.3,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    textAlignVertical: 'bottom',
-    paddingVertical: SPACE.xs,
+  // Landscape: content sticks to top (new lines push down)
+  exprContentTop: {
+    flexGrow:       1,
+    justifyContent: 'flex-start',
   },
-  // Top-anchored scroll content — text grows downward from top
-  exprScrollContentTop: {
-    flexGrow: 1,
-    justifyContent: 'flex-start',   // ← top instead of flex-end
+
+  expression: {
+    fontWeight:      '300',
+    letterSpacing:    0.3,
+    backgroundColor: 'transparent',
+    borderWidth:      0,
+    paddingVertical:  SPACE.xs,
   },
 
   // ── Sub-display ───────────────────────────────────
   result: {
     fontWeight: '300',
-    marginTop: SPACE.xs,
-    textAlign: 'right',
+    marginTop:  SPACE.xs,
+    textAlign:  'right',
   },
   subText: {
-    fontSize: rf(13),
+    fontSize:   rf(13),
     fontWeight: '500',
-    textAlign: 'right',
-    marginTop: SPACE.xs,
+    textAlign:  'right',
+    marginTop:  SPACE.xs,
   },
 
   // ── Landscape ────────────────────────────────────
   landscapeContainer: {
-    flex: 1,
+    flex:              1,
     paddingHorizontal: SPACE.md,
-    paddingTop: SPACE.sm,
-    paddingBottom: SPACE.sm,
+    paddingTop:        SPACE.sm,
+    paddingBottom:     SPACE.sm,
   },
   landscapeResult: {
-    fontWeight: '200',
+    fontWeight:    '200',
     letterSpacing: -1,
-    textAlign: 'right',
-    marginBottom: SPACE.xs,
-    minHeight: rf(54),
-    width: '100%',
+    textAlign:     'right',
+    marginBottom:  SPACE.xs,
+    minHeight:     rf(54),
+    width:         '100%',
   },
   landscapeSeparator: {
-    height: StyleSheet.hairlineWidth,
+    height:         StyleSheet.hairlineWidth,
     marginVertical: SPACE.sm,
-  },
-  landscapeExpr: {
-    fontWeight: '300',
-    letterSpacing: 0.3,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-    textAlign: 'right',
   },
 });
